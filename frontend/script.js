@@ -1,175 +1,414 @@
 // Configuração
-const API_URL = 'http://localhost:5000/api'; // Mude para URL do seu backend quando hospedar
+const API_URL = 'http://localhost:5001/api';
 
-// Estado da aplicação
-let precosAtuais = {};
-let carteiraAtual = {};
+// Charts
+let patrimonioChart, distribuicaoChart;
 
-// Atualiza a cada 5 segundos
-setInterval(carregarDados, 5000);
+// Dados históricos hora a hora
+const gerarDadosHoraHora = () => {
+    const dados = [];
+    const horas = [];
+    
+    // Gerar dados das últimas 24 horas
+    for (let i = 24; i >= 0; i--) {
+        const data = new Date();
+        data.setHours(data.getHours() - i);
+        
+        // Formato: "00:00" ou "01:00" etc
+        horas.push(data.getHours().toString().padStart(2, '0') + ':00');
+        
+        // Simular variação do patrimônio
+        const base = 1000;
+        const variacao = Math.sin(i / 4) * 50 + (i * 2);
+        dados.push(base + variacao);
+    }
+    
+    return { horas, dados };
+};
 
 // Inicialização
 document.addEventListener('DOMContentLoaded', () => {
+    iniciarCharts();
     carregarDados();
-    configurarEventos();
+    setInterval(carregarDados, 30000); // Atualiza a cada 30 segundos
+    setInterval(atualizarUltimaAtualizacao, 1000);
 });
 
-function configurarEventos() {
-    document.getElementById('btn-comprar').addEventListener('click', () => executarOperacao('COMPRA'));
-    document.getElementById('btn-vender').addEventListener('click', () => executarOperacao('VENDA'));
-    document.getElementById('btn-reset').addEventListener('click', resetCarteira);
+function iniciarCharts() {
+    // Chart de Patrimônio - Estilo LSEG
+    const ctxPatrimonio = document.getElementById('chart-patrimonio').getContext('2d');
+    
+    // Criar gradiente dourado
+    const gradient = ctxPatrimonio.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.2)');
+    gradient.addColorStop(1, 'rgba(255, 215, 0, 0.0)');
+    
+    const { horas, dados } = gerarDadosHoraHora();
+    
+    patrimonioChart = new Chart(ctxPatrimonio, {
+        type: 'line',
+        data: {
+            labels: horas,
+            datasets: [{
+                label: 'BTC/BRL',
+                data: dados,
+                borderColor: '#FFD700',
+                backgroundColor: gradient,
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                pointHoverBackgroundColor: '#FFD700',
+                pointHoverBorderColor: '#B8860B',
+                tension: 0.2,
+                fill: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            layout: {
+                padding: {
+                    top: 20,
+                    bottom: 30
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                    backgroundColor: '#1E2329',
+                    titleColor: '#FFD700',
+                    bodyColor: '#FFFFFF',
+                    borderColor: '#B8860B',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            return `R$ ${context.raw.toFixed(2)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    position: 'right',
+                    grid: {
+                        color: 'rgba(255, 255, 255, 0.1)',
+                        drawBorder: false,
+                        lineWidth: 0.5
+                    },
+                    ticks: {
+                        color: '#9CA3AF',
+                        callback: function(value) {
+                            return 'R$ ' + value.toFixed(0);
+                        },
+                        stepSize: 200000
+                    },
+                    min: 0,
+                    max: 1000000
+                },
+                x: {
+                    grid: {
+                        display: false
+                    },
+                    ticks: {
+                        color: '#9CA3AF',
+                        maxRotation: 0,
+                        maxTicksLimit: 12
+                    }
+                }
+            },
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            elements: {
+                line: {
+                    borderJoinStyle: 'round'
+                }
+            }
+        }
+    });
+
+    // Chart de Distribuição - Donut
+    const ctxDistribuicao = document.getElementById('chart-distribuicao').getContext('2d');
+    distribuicaoChart = new Chart(ctxDistribuicao, {
+        type: 'doughnut',
+        data: {
+            labels: ['BTC', 'ETH', 'BNB', 'ADA', 'BRL'],
+            datasets: [{
+                data: [45, 30, 15, 5, 5],
+                backgroundColor: [
+                    '#FFD700',
+                    '#B8860B',
+                    '#DAA520',
+                    '#CD7F32',
+                    '#9CA3AF'
+                ],
+                borderWidth: 0,
+                hoverOffset: 5
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    backgroundColor: '#1E2329',
+                    titleColor: '#FFD700',
+                    bodyColor: '#FFFFFF',
+                    borderColor: '#B8860B',
+                    borderWidth: 1,
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.raw}%`;
+                        }
+                    }
+                }
+            },
+            cutout: '65%',
+            layout: {
+                padding: 10
+            }
+        }
+    });
+
+    // Atualizar lista de distribuição
+    atualizarDistribuicaoLista([
+        { simbolo: 'BTC', percentual: 45, valor: 450000 },
+        { simbolo: 'ETH', percentual: 30, valor: 300000 },
+        { simbolo: 'BNB', percentual: 15, valor: 150000 },
+        { simbolo: 'ADA', percentual: 5, valor: 50000 },
+        { simbolo: 'BRL', percentual: 5, valor: 50000 }
+    ]);
+
+    // Adicionar footer do gráfico
+    adicionarFooterGrafico();
+}
+
+function adicionarFooterGrafico() {
+    const chartContainer = document.querySelector('.chart-container');
+    if (chartContainer && !document.querySelector('.chart-footer')) {
+        const footer = document.createElement('div');
+        footer.className = 'chart-footer';
+        footer.innerHTML = `
+            <div class="chart-footer-left">
+                <span class="chart-footer-label">BTC - Bitcoin</span>
+                <span class="chart-footer-label">BRL R$ - Real Brasileiro</span>
+                <span class="chart-footer-value">1,00</span>
+                <span class="chart-footer-value">360.652,00</span>
+            </div>
+            <div class="chart-footer-right">
+                <span class="chart-footer-data">Dados do LSEG · Aviso de Isenção de Responsabilidade</span>
+            </div>
+        `;
+        chartContainer.appendChild(footer);
+    }
+}
+
+function atualizarDistribuicaoLista(distribuicao) {
+    const lista = document.getElementById('distribuicao-lista');
+    if (!lista) return;
+    
+    lista.innerHTML = distribuicao.map(item => `
+        <div class="distribution-item">
+            <div class="distribution-info">
+                <span class="distribution-symbol">${item.simbolo}</span>
+                <span class="distribution-value">R$ ${item.valor.toLocaleString('pt-BR')}</span>
+            </div>
+            <div class="distribution-bar-container">
+                <div class="distribution-bar">
+                    <div class="distribution-fill" style="width: ${item.percentual}%"></div>
+                </div>
+                <span class="distribution-percent">${item.percentual}%</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function atualizarGraficoPatrimonio(novoValor) {
+    if (!patrimonioChart) return;
+    
+    // Adicionar novo dado
+    const agora = new Date();
+    const horaAtual = agora.getHours().toString().padStart(2, '0') + ':00';
+    
+    patrimonioChart.data.labels.push(horaAtual);
+    patrimonioChart.data.datasets[0].data.push(novoValor);
+    
+    // Manter apenas últimas 24 horas
+    if (patrimonioChart.data.labels.length > 25) {
+        patrimonioChart.data.labels.shift();
+        patrimonioChart.data.datasets[0].data.shift();
+    }
+    
+    patrimonioChart.update();
 }
 
 async function carregarDados() {
     try {
-        // Carrega preços
-        const responsePrecos = await fetch(`${API_URL}/precos`);
-        const dadosPrecos = await responsePrecos.json();
-        precosAtuais = dadosPrecos.precos;
+        // Simular dados da API
+        const patrimonioAtual = 1234567.89;
         
-        // Carrega carteira
-        const responseCarteira = await fetch(`${API_URL}/carteira`);
-        carteiraAtual = await responseCarteira.json();
+        // Atualizar cards
+        document.getElementById('patrimonio-atual').textContent = 
+            formatarMoeda(patrimonioAtual);
         
-        // Atualiza interface
-        atualizarTabelaPrecos();
-        atualizarCarteira();
-        atualizarHistorico();
-        atualizarSelectMoedas();
+        // Calcular variação
+        const variacao = 23.45;
+        const variacaoEl = document.getElementById('variacao-total');
+        variacaoEl.innerHTML = variacao >= 0 
+            ? `<i class="fas fa-arrow-up"></i> +${variacao.toFixed(2)}%`
+            : `<i class="fas fa-arrow-down"></i> ${variacao.toFixed(2)}%`;
+        variacaoEl.className = `variacao ${variacao >= 0 ? 'positiva' : 'negativa'}`;
+        
+        // Atualizar outros valores
+        document.getElementById('saldo-disponivel').textContent = formatarMoeda(567890.12);
+        document.getElementById('total-cripto').textContent = formatarMoeda(666777.89);
+        document.getElementById('total-trades').textContent = '47';
+        document.getElementById('win-rate').textContent = '68%';
+        document.getElementById('trades-hoje').textContent = '12';
+        document.getElementById('melhor-trade').textContent = '+8.5%';
+        
+        // Atualizar gráfico com novo valor
+        atualizarGraficoPatrimonio(patrimonioAtual);
+        
+        // Atualizar posições
+        atualizarPosicoes();
+        
+        // Atualizar timeline
+        atualizarTimeline();
+        
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
     }
 }
 
-function atualizarTabelaPrecos() {
-    const tabela = document.getElementById('tabela-precos');
-    let html = `
-        <table>
-            <tr>
-                <th>Moeda</th>
-                <th>Preço (USDT)</th>
-                <th>Preço (BRL)</th>
-                <th>Variação 24h</th>
-            </tr>
-    `;
+function atualizarPosicoes() {
+    const tbody = document.getElementById('posicoes-body');
+    if (!tbody) return;
     
-    for (const [simbolo, dados] of Object.entries(precosAtuais)) {
-        const variacaoClass = dados.variacao_24h >= 0 ? 'positiva' : 'negativa';
-        const precoBrl = dados.preco * 5; // Taxa USD/BRL aproximada
+    const posicoes = [
+        { simbolo: 'BTC', quantidade: 0.004523, preco_medio: 45231.50, preco_atual: 48234.20 },
+        { simbolo: 'ETH', quantidade: 0.123456, preco_medio: 3245.80, preco_atual: 3567.90 },
+        { simbolo: 'BNB', quantidade: 0.567890, preco_medio: 456.70, preco_atual: 489.30 },
+        { simbolo: 'ADA', quantidade: 15.678, preco_medio: 0.42, preco_atual: 0.48 }
+    ];
+    
+    tbody.innerHTML = posicoes.map(pos => {
+        const valor_total = pos.quantidade * pos.preco_atual;
+        const lucro_prejuizo = (pos.preco_atual - pos.preco_medio) * pos.quantidade;
+        const lucro_percentual = ((pos.preco_atual / pos.preco_medio) - 1) * 100;
+        const lucroClass = lucro_prejuizo >= 0 ? 'lucro' : 'prejuizo';
         
-        html += `
+        return `
             <tr>
-                <td><strong>${simbolo}</strong></td>
-                <td>$${dados.preco.toFixed(2)}</td>
-                <td>R$${precoBrl.toFixed(2)}</td>
-                <td class="${variacaoClass}">${dados.variacao_24h.toFixed(2)}%</td>
+                <td><strong>${pos.simbolo}</strong></td>
+                <td>${pos.quantidade.toFixed(6)}</td>
+                <td>R$ ${formatarNumero(pos.preco_medio)}</td>
+                <td>R$ ${formatarNumero(pos.preco_atual)}</td>
+                <td>${formatarMoeda(valor_total)}</td>
+                <td class="${lucroClass}">${formatarMoeda(lucro_prejuizo)}</td>
+                <td class="${lucroClass}">${lucro_percentual >= 0 ? '+' : ''}${lucro_percentual.toFixed(2)}%</td>
+                <td><i class="fas fa-chart-line" style="color: #FFD700;"></i></td>
             </tr>
         `;
-    }
-    
-    html += '</table>';
-    tabela.innerHTML = html;
+    }).join('');
 }
 
-function atualizarCarteira() {
-    document.getElementById('saldo-brl').textContent = carteiraAtual.saldo_brl.toFixed(2);
-    document.getElementById('patrimonio-total').textContent = carteiraAtual.patrimonio.patrimonio_total.toFixed(2);
+function atualizarTimeline() {
+    const timeline = document.getElementById('timeline-container');
+    if (!timeline) return;
     
-    const posicoesDiv = document.getElementById('posicoes');
-    if (carteiraAtual.posicoes.length === 0) {
-        posicoesDiv.innerHTML = '<p class="vazio">Nenhuma posição aberta</p>';
-        return;
-    }
+    const operacoes = [
+        { 
+            tipo: 'COMPRA', 
+            simbolo: 'BTC', 
+            quantidade: 0.001234, 
+            preco: 48234.20, 
+            timestamp: new Date(),
+            motivo: 'RSI sobrevendido'
+        },
+        { 
+            tipo: 'VENDA', 
+            simbolo: 'ETH', 
+            quantidade: 0.056789, 
+            preco: 3567.90, 
+            timestamp: new Date(Date.now() - 900000),
+            motivo: 'Resistência atingida'
+        },
+        { 
+            tipo: 'COMPRA', 
+            simbolo: 'BNB', 
+            quantidade: 0.123456, 
+            preco: 489.30, 
+            timestamp: new Date(Date.now() - 1800000),
+            motivo: 'Cruzamento de médias'
+        },
+        { 
+            tipo: 'COMPRA', 
+            simbolo: 'ADA', 
+            quantidade: 15.678, 
+            preco: 0.48, 
+            timestamp: new Date(Date.now() - 3600000),
+            motivo: 'Suporte identificado'
+        }
+    ];
     
-    let html = '<div class="grid-posicoes">';
-    carteiraAtual.posicoes.forEach(pos => {
-        const variacaoClass = pos.variacao >= 0 ? 'positiva' : 'negativa';
-        html += `
-            <div class="card-posicao">
-                <h3>${pos.simbolo}</h3>
-                <p>Quantidade: ${pos.quantidade.toFixed(6)}</p>
-                <p>Preço: $${pos.preco_atual.toFixed(2)}</p>
-                <p>Valor: R$${pos.valor_atual.toFixed(2)}</p>
-                <p class="${variacaoClass}">Variação: ${pos.variacao.toFixed(2)}%</p>
-            </div>
-        `;
-    });
-    html += '</div>';
-    posicoesDiv.innerHTML = html;
-}
-
-function atualizarHistorico() {
-    const historicoDiv = document.getElementById('historico-lista');
-    if (!carteiraAtual.historico || carteiraAtual.historico.length === 0) {
-        historicoDiv.innerHTML = '<p class="vazio">Nenhuma operação realizada</p>';
-        return;
-    }
-    
-    let html = '<ul class="lista-historico">';
-    carteiraAtual.historico.slice().reverse().forEach(op => {
-        const tipoClass = op.tipo === 'COMPRA' ? 'compra' : 'venda';
-        const data = new Date(op.timestamp).toLocaleString('pt-BR');
-        html += `
-            <li class="${tipoClass}">
-                <span>${op.tipo}</span>
-                <span>${op.quantidade.toFixed(6)} ${op.simbolo}</span>
-                <span>@ $${op.preco.toFixed(2)}</span>
-                <span>Total: R$${op.total.toFixed(2)}</span>
-                <span class="data">${data}</span>
-            </li>
-        `;
-    });
-    html += '</ul>';
-    historicoDiv.innerHTML = html;
-}
-
-function atualizarSelectMoedas() {
-    const select = document.getElementById('select-moeda');
-    const options = Object.keys(precosAtuais).map(simbolo => 
-        `<option value="${simbolo}">${simbolo} - $${precosAtuais[simbolo].preco.toFixed(2)}</option>`
-    ).join('');
-    select.innerHTML = `<option value="">Selecione uma moeda</option>${options}`;
-}
-
-async function executarOperacao(tipo) {
-    const simbolo = document.getElementById('select-moeda').value;
-    const quantidade = document.getElementById('quantidade').value;
-    
-    if (!simbolo || !quantidade) {
-        alert('Selecione uma moeda e insira a quantidade');
-        return;
-    }
-    
-    const endpoint = tipo === 'COMPRA' ? 'comprar' : 'vender';
-    
-    try {
-        const response = await fetch(`${API_URL}/${endpoint}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ simbolo, quantidade: parseFloat(quantidade) })
+    timeline.innerHTML = operacoes.map(op => {
+        const horario = new Date(op.timestamp).toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit'
         });
         
-        const resultado = await response.json();
-        
-        if (resultado.sucesso) {
-            alert('Operação realizada com sucesso!');
-            document.getElementById('quantidade').value = '';
-            carregarDados(); // Atualiza dados
-        } else {
-            alert(`Erro: ${resultado.mensagem}`);
-        }
-    } catch (error) {
-        alert('Erro ao executar operação');
+        return `
+            <div class="timeline-item ${op.tipo.toLowerCase()}">
+                <div class="timeline-icon ${op.tipo.toLowerCase()}">
+                    <i class="fas fa-${op.tipo === 'COMPRA' ? 'arrow-down' : 'arrow-up'}"></i>
+                </div>
+                <div class="timeline-content">
+                    <div class="timeline-header">
+                        <h4>${op.tipo} ${op.simbolo}</h4>
+                        <span class="timeline-time">${horario}</span>
+                    </div>
+                    <p class="timeline-motivo">${op.motivo}</p>
+                    <p class="timeline-detalhes">
+                        ${op.quantidade.toFixed(6)} unidades • R$ ${formatarNumero(op.preco)}
+                    </p>
+                </div>
+                <div class="timeline-price">
+                    R$ ${(op.quantidade * op.preco).toFixed(2)}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function atualizarUltimaAtualizacao() {
+    const agora = new Date();
+    const elemento = document.getElementById('ultima-atualizacao');
+    if (elemento) {
+        elemento.textContent = agora.toLocaleTimeString('pt-BR') + ' UTC';
     }
 }
 
-async function resetCarteira() {
-    if (confirm('Tem certeza? Todo seu progresso será perdido.')) {
-        try {
-            await fetch(`${API_URL}/reset`, { method: 'POST' });
-            carregarDados();
-        } catch (error) {
-            alert('Erro ao resetar carteira');
-        }
-    }
+function formatarMoeda(valor) {
+    return new Intl.NumberFormat('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(valor);
+}
+
+function formatarNumero(valor) {
+    return new Intl.NumberFormat('pt-BR', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+    }).format(valor);
 }
