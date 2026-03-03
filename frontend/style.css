@@ -1,0 +1,222 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+h1 {
+    color: #667eea;
+    margin-bottom: 15px;
+}
+
+.saldo-info {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+    font-size: 1.2em;
+    flex-wrap: wrap;
+}
+
+.saldo-info span:first-child {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.btn-reset {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background 0.3s;
+}
+
+.btn-reset:hover {
+    background: #c82333;
+}
+
+.mercado, .carteira, .operacoes, .historico {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+h2 {
+    color: #495057;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+.tabela-precos table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tabela-precos th {
+    background: #f8f9fa;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.tabela-precos td {
+    padding: 12px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.positiva {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.negativa {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.grid-posicoes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.card-posicao {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.card-posicao h3 {
+    color: #667eea;
+    margin-bottom: 10px;
+}
+
+.card-posicao p {
+    margin: 5px 0;
+    font-size: 0.9em;
+}
+
+#form-operacao {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#select-moeda, #quantidade {
+    flex: 1;
+    min-width: 200px;
+    padding: 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    font-size: 1em;
+}
+
+.botoes {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-comprar, .btn-vender {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.3s;
+}
+
+.btn-comprar {
+    background: #28a745;
+}
+
+.btn-vender {
+    background: #dc3545;
+}
+
+.btn-comprar:hover, .btn-vender:hover {
+    opacity: 0.9;
+}
+
+.lista-historico {
+    list-style: none;
+}
+
+.lista-historico li {
+    padding: 10px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.lista-historico li.compra {
+    border-left: 4px solid #28a745;
+}
+
+.lista-historico li.venda {
+    border-left: 4px solid #dc3545;
+}
+
+.data {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-left: auto;
+}
+
+.vazio {
+    color: #6c757d;
+    text-align: center;
+    padding: 20px;
+}
+
+@media (max-width: 768px) {
+    .saldo-info {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .grid-posicoes {
+        grid-template-columns: 1fr;
+    }
+    
+    #form-operacao {
+        flex-direction: column;
+    }
+    
+    .lista-historico li {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .data {
+        margin-left: 0;
+    }
+}

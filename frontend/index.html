@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cripto Simulador</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Cripto Simulador</h1>
+            <div class="saldo-info">
+                <span>Saldo Disponível: R$ <span id="saldo-brl">1000.00</span></span>
+                <span>Patrimônio Total: R$ <span id="patrimonio-total">1000.00</span></span>
+                <button id="btn-reset" class="btn-reset">↺ Reset</button>
+            </div>
+        </header>
+
+        <div class="mercado">
+            <h2>📊 Mercado em Tempo Real</h2>
+            <div class="tabela-precos" id="tabela-precos">
+                <!-- Preços serão inseridos via JavaScript -->
+            </div>
+        </div>
+
+        <div class="carteira">
+            <h2>📈 Minha Carteira</h2>
+            <div class="posicoes" id="posicoes">
+                <!-- Posições serão inseridas via JavaScript -->
+            </div>
+        </div>
+
+        <div class="operacoes">
+            <h2>⚡ Nova Operação</h2>
+            <form id="form-operacao">
+                <select id="select-moeda" required>
+                    <option value="">Selecione uma moeda</option>
+                </select>
+                <input type="number" id="quantidade" placeholder="Quantidade" step="0.000001" min="0" required>
+                <div class="botoes">
+                    <button type="button" id="btn-comprar" class="btn-comprar">Comprar</button>
+                    <button type="button" id="btn-vender" class="btn-vender">Vender</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="historico">
+            <h2>📜 Histórico de Operações</h2>
+            <div id="historico-lista">
+                <!-- Histórico será inserido via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
