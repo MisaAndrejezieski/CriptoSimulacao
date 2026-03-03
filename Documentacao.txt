@@ -1,0 +1,758 @@
+📦 Estrutura do Projeto
+text
+cripto-simulador/
+├── backend/
+│   ├── app.py              # API Flask com dados em tempo real
+│   ├── simulador.py        # Lógica do simulador (carteira, ordens)
+│   ├── mercado.py          # Coleta de cotações de API pública
+│   └── requirements.txt    # Dependências Python
+├── frontend/
+│   ├── index.html          # Interface principal
+│   ├── style.css           # Estilos
+│   ├── script.js           # Lógica do front-end
+│   └── assets/             # Imagens, ícones
+└── README.md
+🔧 Back-end Python (API e Simulador)
+requirements.txt
+
+txt
+flask
+flask-cors
+requests
+apscheduler
+python-dotenv
+mercado.py - Coletor de Cotações em Tempo Real
+
+python
+import requests
+import time
+from datetime import datetime
+
+class ColetorMercado:
+    def __init__(self):
+        self.base_url = "https://api.binance.com/api/v3"
+        self.precos_cache = {}
+        self.ultima_atualizacao = None
+        
+    def get_preco_atual(self, simbolo):
+        """Obtém preço atual de uma criptomoeda"""
+        try:
+            response = requests.get(
+                f"{self.base_url}/ticker/price",
+                params={"symbol": f"{simbolo}USDT"}
+            )
+            data = response.json()
+            return {
+                'simbolo': simbolo,
+                'preco': float(data['price']),
+                'variacao_24h': self.get_variacao_24h(simbolo),
+                'timestamp': datetime.now().isoformat()
+            }
+        except Exception as e:
+            print(f"Erro ao buscar {simbolo}: {e}")
+            return None
+    
+    def get_variacao_24h(self, simbolo):
+        """Obtém variação percentual nas últimas 24h"""
+        try:
+            response = requests.get(
+                f"{self.base_url}/ticker/24hr",
+                params={"symbol": f"{simbolo}USDT"}
+            )
+            data = response.json()
+            return float(data['priceChangePercent'])
+        except:
+            return 0.0
+    
+    def get_multiplos_precos(self, simbolos):
+        """Busca preços de várias moedas de uma vez"""
+        precos = {}
+        for simbolo in simbolos:
+            preco_data = self.get_preco_atual(simbolo)
+            if preco_data:
+                precos[simbolo] = preco_data
+        self.precos_cache = precos
+        self.ultima_atualizacao = datetime.now()
+        return precos
+simulador.py - Lógica do Usuário
+
+python
+import json
+import os
+from datetime import datetime
+
+class SimuladorCripto:
+    def __init__(self, usuario_id="default"):
+        self.usuario_id = usuario_id
+        self.saldo_inicial = 1000.0  # R$ 1000 fictícios
+        self.carteira = self.carregar_carteira()
+        
+    def carregar_carteira(self):
+        """Carrega ou cria carteira do usuário"""
+        arquivo = f"carteira_{self.usuario_id}.json"
+        if os.path.exists(arquivo):
+            with open(arquivo, 'r') as f:
+                return json.load(f)
+        else:
+            return {
+                'saldo_brl': self.saldo_inicial,
+                'moedas': {},  # {'BTC': 0.001, 'ETH': 0.5}
+                'historico': []
+            }
+    
+    def salvar_carteira(self):
+        """Salva estado da carteira"""
+        arquivo = f"carteira_{self.usuario_id}.json"
+        with open(arquivo, 'w') as f:
+            json.dump(self.carteira, f, indent=2)
+    
+    def comprar(self, simbolo, quantidade, preco):
+        """Executa uma compra simulada"""
+        custo_total = quantidade * preco
+        
+        if custo_total > self.carteira['saldo_brl']:
+            return {'sucesso': False, 'mensagem': 'Saldo insuficiente'}
+        
+        # Atualiza saldo
+        self.carteira['saldo_brl'] -= custo_total
+        
+        # Atualiza posição da moeda
+        if simbolo in self.carteira['moedas']:
+            self.carteira['moedas'][simbolo] += quantidade
+        else:
+            self.carteira['moedas'][simbolo] = quantidade
+        
+        # Registra no histórico
+        self.carteira['historico'].append({
+            'tipo': 'COMPRA',
+            'simbolo': simbolo,
+            'quantidade': quantidade,
+            'preco': preco,
+            'total': custo_total,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        self.salvar_carteira()
+        return {
+            'sucesso': True,
+            'saldo_restante': self.carteira['saldo_brl'],
+            'posicao': self.carteira['moedas'].get(simbolo, 0)
+        }
+    
+    def vender(self, simbolo, quantidade, preco):
+        """Executa uma venda simulada"""
+        if simbolo not in self.carteira['moedas']:
+            return {'sucesso': False, 'mensagem': 'Você não possui esta moeda'}
+        
+        if quantidade > self.carteira['moedas'][simbolo]:
+            return {'sucesso': False, 'mensagem': 'Quantidade insuficiente'}
+        
+        valor_venda = quantidade * preco
+        
+        # Atualiza saldo
+        self.carteira['saldo_brl'] += valor_venda
+        
+        # Atualiza posição da moeda
+        self.carteira['moedas'][simbolo] -= quantidade
+        if self.carteira['moedas'][simbolo] == 0:
+            del self.carteira['moedas'][simbolo]
+        
+        # Registra no histórico
+        self.carteira['historico'].append({
+            'tipo': 'VENDA',
+            'simbolo': simbolo,
+            'quantidade': quantidade,
+            'preco': preco,
+            'total': valor_venda,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+        self.salvar_carteira()
+        return {
+            'sucesso': True,
+            'saldo_atual': self.carteira['saldo_brl'],
+            'posicao': self.carteira['moedas'].get(simbolo, 0)
+        }
+    
+    def get_patrimonio_total(self, precos_atuais):
+        """Calcula patrimônio total com preços atuais"""
+        total_cripto = 0
+        for simbolo, quantidade in self.carteira['moedas'].items():
+            if simbolo in precos_atuais:
+                total_cripto += quantidade * precos_atuais[simbolo]['preco']
+        
+        return {
+            'saldo_brl': round(self.carteira['saldo_brl'], 2),
+            'total_cripto': round(total_cripto, 2),
+            'patrimonio_total': round(self.carteira['saldo_brl'] + total_cripto, 2)
+        }
+app.py - API Flask
+
+python
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+from mercado import ColetorMercado
+from simulador import SimuladorCripto
+from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
+
+app = Flask(__name__)
+CORS(app)  # Permite requisições do front-end
+
+# Inicializa componentes
+coletor = ColetorMercado()
+simulador = SimuladorCripto()
+
+# Lista de moedas para monitorar
+MOEDAS = ['BTC', 'ETH', 'BNB', 'ADA', 'DOT', 'LINK']
+
+# Atualiza preços a cada 10 segundos em background
+scheduler = BackgroundScheduler()
+scheduler.add_job(
+    func=lambda: coletor.get_multiplos_precos(MOEDAS),
+    trigger="interval",
+    seconds=10
+)
+scheduler.start()
+atexit.register(lambda: scheduler.shutdown())
+
+@app.route('/api/precos', methods=['GET'])
+def get_precos():
+    """Endpoint para obter preços atuais"""
+    precos = coletor.get_multiplos_precos(MOEDAS)
+    return jsonify({
+        'precos': precos,
+        'timestamp': coletor.ultima_atualizacao.isoformat() if coletor.ultima_atualizacao else None
+    })
+
+@app.route('/api/carteira', methods=['GET'])
+def get_carteira():
+    """Endpoint para obter estado da carteira"""
+    precos = coletor.precos_cache
+    patrimonio = simulador.get_patrimonio_total(precos)
+    
+    # Enriquece posições com preços atuais
+    posicoes = []
+    for simbolo, quantidade in simulador.carteira['moedas'].items():
+        if simbolo in precos:
+            preco_atual = precos[simbolo]['preco']
+            valor_atual = quantidade * preco_atual
+            posicoes.append({
+                'simbolo': simbolo,
+                'quantidade': quantidade,
+                'preco_atual': preco_atual,
+                'valor_atual': valor_atual,
+                'variacao': precos[simbolo].get('variacao_24h', 0)
+            })
+    
+    return jsonify({
+        'saldo_brl': simulador.carteira['saldo_brl'],
+        'posicoes': posicoes,
+        'patrimonio': patrimonio,
+        'historico': simulador.carteira['historico'][-10:]  # Últimas 10 operações
+    })
+
+@app.route('/api/comprar', methods=['POST'])
+def comprar():
+    """Endpoint para executar compra"""
+    data = request.json
+    simbolo = data.get('simbolo')
+    quantidade = float(data.get('quantidade', 0))
+    
+    if simbolo not in coletor.precos_cache:
+        return jsonify({'sucesso': False, 'mensagem': 'Moeda não encontrada'})
+    
+    preco_atual = coletor.precos_cache[simbolo]['preco']
+    resultado = simulador.comprar(simbolo, quantidade, preco_atual)
+    
+    return jsonify(resultado)
+
+@app.route('/api/vender', methods=['POST'])
+def vender():
+    """Endpoint para executar venda"""
+    data = request.json
+    simbolo = data.get('simbolo')
+    quantidade = float(data.get('quantidade', 0))
+    
+    if simbolo not in coletor.precos_cache:
+        return jsonify({'sucesso': False, 'mensagem': 'Moeda não encontrada'})
+    
+    preco_atual = coletor.precos_cache[simbolo]['preco']
+    resultado = simulador.vender(simbolo, quantidade, preco_atual)
+    
+    return jsonify(resultado)
+
+@app.route('/api/reset', methods=['POST'])
+def reset_carteira():
+    """Reseta a carteira para R$ 1000 iniciais"""
+    global simulador
+    simulador = SimuladorCripto()
+    return jsonify({'sucesso': True, 'mensagem': 'Carteira resetada'})
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
+💻 Front-end HTML/JavaScript
+frontend/index.html
+
+html
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cripto Simulador</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💰 Cripto Simulador</h1>
+            <div class="saldo-info">
+                <span>Saldo Disponível: R$ <span id="saldo-brl">1000.00</span></span>
+                <span>Patrimônio Total: R$ <span id="patrimonio-total">1000.00</span></span>
+                <button id="btn-reset" class="btn-reset">↺ Reset</button>
+            </div>
+        </header>
+
+        <div class="mercado">
+            <h2>📊 Mercado em Tempo Real</h2>
+            <div class="tabela-precos" id="tabela-precos">
+                <!-- Preços serão inseridos via JavaScript -->
+            </div>
+        </div>
+
+        <div class="carteira">
+            <h2>📈 Minha Carteira</h2>
+            <div class="posicoes" id="posicoes">
+                <!-- Posições serão inseridas via JavaScript -->
+            </div>
+        </div>
+
+        <div class="operacoes">
+            <h2>⚡ Nova Operação</h2>
+            <form id="form-operacao">
+                <select id="select-moeda" required>
+                    <option value="">Selecione uma moeda</option>
+                </select>
+                <input type="number" id="quantidade" placeholder="Quantidade" step="0.000001" min="0" required>
+                <div class="botoes">
+                    <button type="button" id="btn-comprar" class="btn-comprar">Comprar</button>
+                    <button type="button" id="btn-vender" class="btn-vender">Vender</button>
+                </div>
+            </form>
+        </div>
+
+        <div class="historico">
+            <h2>📜 Histórico de Operações</h2>
+            <div id="historico-lista">
+                <!-- Histórico será inserido via JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+frontend/script.js
+
+javascript
+// Configuração
+const API_URL = 'http://localhost:5000/api'; // Mude para URL do seu backend quando hospedar
+
+// Estado da aplicação
+let precosAtuais = {};
+let carteiraAtual = {};
+
+// Atualiza a cada 5 segundos
+setInterval(carregarDados, 5000);
+
+// Inicialização
+document.addEventListener('DOMContentLoaded', () => {
+    carregarDados();
+    configurarEventos();
+});
+
+function configurarEventos() {
+    document.getElementById('btn-comprar').addEventListener('click', () => executarOperacao('COMPRA'));
+    document.getElementById('btn-vender').addEventListener('click', () => executarOperacao('VENDA'));
+    document.getElementById('btn-reset').addEventListener('click', resetCarteira);
+}
+
+async function carregarDados() {
+    try {
+        // Carrega preços
+        const responsePrecos = await fetch(`${API_URL}/precos`);
+        const dadosPrecos = await responsePrecos.json();
+        precosAtuais = dadosPrecos.precos;
+        
+        // Carrega carteira
+        const responseCarteira = await fetch(`${API_URL}/carteira`);
+        carteiraAtual = await responseCarteira.json();
+        
+        // Atualiza interface
+        atualizarTabelaPrecos();
+        atualizarCarteira();
+        atualizarHistorico();
+        atualizarSelectMoedas();
+    } catch (error) {
+        console.error('Erro ao carregar dados:', error);
+    }
+}
+
+function atualizarTabelaPrecos() {
+    const tabela = document.getElementById('tabela-precos');
+    let html = `
+        <table>
+            <tr>
+                <th>Moeda</th>
+                <th>Preço (USDT)</th>
+                <th>Preço (BRL)</th>
+                <th>Variação 24h</th>
+            </tr>
+    `;
+    
+    for (const [simbolo, dados] of Object.entries(precosAtuais)) {
+        const variacaoClass = dados.variacao_24h >= 0 ? 'positiva' : 'negativa';
+        const precoBrl = dados.preco * 5; // Taxa USD/BRL aproximada
+        
+        html += `
+            <tr>
+                <td><strong>${simbolo}</strong></td>
+                <td>$${dados.preco.toFixed(2)}</td>
+                <td>R$${precoBrl.toFixed(2)}</td>
+                <td class="${variacaoClass}">${dados.variacao_24h.toFixed(2)}%</td>
+            </tr>
+        `;
+    }
+    
+    html += '</table>';
+    tabela.innerHTML = html;
+}
+
+function atualizarCarteira() {
+    document.getElementById('saldo-brl').textContent = carteiraAtual.saldo_brl.toFixed(2);
+    document.getElementById('patrimonio-total').textContent = carteiraAtual.patrimonio.patrimonio_total.toFixed(2);
+    
+    const posicoesDiv = document.getElementById('posicoes');
+    if (carteiraAtual.posicoes.length === 0) {
+        posicoesDiv.innerHTML = '<p class="vazio">Nenhuma posição aberta</p>';
+        return;
+    }
+    
+    let html = '<div class="grid-posicoes">';
+    carteiraAtual.posicoes.forEach(pos => {
+        const variacaoClass = pos.variacao >= 0 ? 'positiva' : 'negativa';
+        html += `
+            <div class="card-posicao">
+                <h3>${pos.simbolo}</h3>
+                <p>Quantidade: ${pos.quantidade.toFixed(6)}</p>
+                <p>Preço: $${pos.preco_atual.toFixed(2)}</p>
+                <p>Valor: R$${pos.valor_atual.toFixed(2)}</p>
+                <p class="${variacaoClass}">Variação: ${pos.variacao.toFixed(2)}%</p>
+            </div>
+        `;
+    });
+    html += '</div>';
+    posicoesDiv.innerHTML = html;
+}
+
+function atualizarHistorico() {
+    const historicoDiv = document.getElementById('historico-lista');
+    if (!carteiraAtual.historico || carteiraAtual.historico.length === 0) {
+        historicoDiv.innerHTML = '<p class="vazio">Nenhuma operação realizada</p>';
+        return;
+    }
+    
+    let html = '<ul class="lista-historico">';
+    carteiraAtual.historico.slice().reverse().forEach(op => {
+        const tipoClass = op.tipo === 'COMPRA' ? 'compra' : 'venda';
+        const data = new Date(op.timestamp).toLocaleString('pt-BR');
+        html += `
+            <li class="${tipoClass}">
+                <span>${op.tipo}</span>
+                <span>${op.quantidade.toFixed(6)} ${op.simbolo}</span>
+                <span>@ $${op.preco.toFixed(2)}</span>
+                <span>Total: R$${op.total.toFixed(2)}</span>
+                <span class="data">${data}</span>
+            </li>
+        `;
+    });
+    html += '</ul>';
+    historicoDiv.innerHTML = html;
+}
+
+function atualizarSelectMoedas() {
+    const select = document.getElementById('select-moeda');
+    const options = Object.keys(precosAtuais).map(simbolo => 
+        `<option value="${simbolo}">${simbolo} - $${precosAtuais[simbolo].preco.toFixed(2)}</option>`
+    ).join('');
+    select.innerHTML = `<option value="">Selecione uma moeda</option>${options}`;
+}
+
+async function executarOperacao(tipo) {
+    const simbolo = document.getElementById('select-moeda').value;
+    const quantidade = document.getElementById('quantidade').value;
+    
+    if (!simbolo || !quantidade) {
+        alert('Selecione uma moeda e insira a quantidade');
+        return;
+    }
+    
+    const endpoint = tipo === 'COMPRA' ? 'comprar' : 'vender';
+    
+    try {
+        const response = await fetch(`${API_URL}/${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ simbolo, quantidade: parseFloat(quantidade) })
+        });
+        
+        const resultado = await response.json();
+        
+        if (resultado.sucesso) {
+            alert('Operação realizada com sucesso!');
+            document.getElementById('quantidade').value = '';
+            carregarDados(); // Atualiza dados
+        } else {
+            alert(`Erro: ${resultado.mensagem}`);
+        }
+    } catch (error) {
+        alert('Erro ao executar operação');
+    }
+}
+
+async function resetCarteira() {
+    if (confirm('Tem certeza? Todo seu progresso será perdido.')) {
+        try {
+            await fetch(`${API_URL}/reset`, { method: 'POST' });
+            carregarDados();
+        } catch (error) {
+            alert('Erro ao resetar carteira');
+        }
+    }
+}
+frontend/style.css
+
+css
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    color: #333;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+header {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+h1 {
+    color: #667eea;
+    margin-bottom: 15px;
+}
+
+.saldo-info {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+    font-size: 1.2em;
+    flex-wrap: wrap;
+}
+
+.saldo-info span:first-child {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.btn-reset {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background 0.3s;
+}
+
+.btn-reset:hover {
+    background: #c82333;
+}
+
+.mercado, .carteira, .operacoes, .historico {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+h2 {
+    color: #495057;
+    margin-bottom: 15px;
+    font-size: 1.3em;
+}
+
+.tabela-precos table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.tabela-precos th {
+    background: #f8f9fa;
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+}
+
+.tabela-precos td {
+    padding: 12px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.positiva {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.negativa {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+.grid-posicoes {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 15px;
+}
+
+.card-posicao {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+}
+
+.card-posicao h3 {
+    color: #667eea;
+    margin-bottom: 10px;
+}
+
+.card-posicao p {
+    margin: 5px 0;
+    font-size: 0.9em;
+}
+
+#form-operacao {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#select-moeda, #quantidade {
+    flex: 1;
+    min-width: 200px;
+    padding: 12px;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    font-size: 1em;
+}
+
+.botoes {
+    display: flex;
+    gap: 10px;
+}
+
+.btn-comprar, .btn-vender {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.3s;
+}
+
+.btn-comprar {
+    background: #28a745;
+}
+
+.btn-vender {
+    background: #dc3545;
+}
+
+.btn-comprar:hover, .btn-vender:hover {
+    opacity: 0.9;
+}
+
+.lista-historico {
+    list-style: none;
+}
+
+.lista-historico li {
+    padding: 10px;
+    border-bottom: 1px solid #dee2e6;
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.lista-historico li.compra {
+    border-left: 4px solid #28a745;
+}
+
+.lista-historico li.venda {
+    border-left: 4px solid #dc3545;
+}
+
+.data {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-left: auto;
+}
+
+.vazio {
+    color: #6c757d;
+    text-align: center;
+    padding: 20px;
+}
+
+@media (max-width: 768px) {
+    .saldo-info {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .grid-posicoes {
+        grid-template-columns: 1fr;
+    }
+    
+    #form-operacao {
+        flex-direction: column;
+    }
+    
+    .lista-historico li {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .data {
+        margin-left: 0;
+    }
+}
