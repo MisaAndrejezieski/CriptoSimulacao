@@ -3,8 +3,10 @@ import atexit
 from apscheduler.schedulers.background import BackgroundScheduler
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from mercado import ColetorMercado
-from simulador import SimuladorCripto
+
+# use relative imports so that the backend package can be imported cleanly
+from .mercado import ColetorMercado
+from .simulador import SimuladorCripto
 
 app = Flask(__name__)
 CORS(app)  # Permite requisições do front-end
