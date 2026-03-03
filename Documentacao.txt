@@ -1,17 +1,22 @@
 📦 Estrutura do Projeto
-text
+
+O sistema foi reestruturado para separar o bot de trading, a API de dashboard e a interface do usuário.
+
+```
 cripto-simulador/
-├── backend/
-│   ├── app.py              # API Flask com dados em tempo real
-│   ├── simulador.py        # Lógica do simulador (carteira, ordens)
-│   ├── mercado.py          # Coleta de cotações de API pública
-│   └── requirements.txt    # Dependências Python
-├── frontend/
-│   ├── index.html          # Interface principal
-│   ├── style.css           # Estilos
-│   ├── script.js           # Lógica do front-end
-│   └── assets/             # Imagens, ícones
-└── README.md
+├── bot/                # Trading bot automático (decisões, carteira, histórico)
+│   ├── trading_bot.py
+│   ├── estrategia.py
+│   ├── mercado.py
+│   └── requirements.txt
+├── api/                # API Flask para o dashboard
+│   └── app.py
+├── dashboard/          # Front‑end estático com gráficos e status
+│   ├── index.html
+│   ├── style.css
+│   └── script.js
+└── requirements.txt    # Dependências gerais
+```
 🔧 Back-end Python (API e Simulador)
 requirements.txt
 

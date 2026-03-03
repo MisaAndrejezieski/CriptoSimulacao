@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoBot | Dashboard Inteligente</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"></script>
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-robot"></i>
+                <span>CryptoBot</span>
+            </div>
+            
+            <nav class="nav-menu">
+                <a href="#" class="active">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Visão Geral</span>
+                </a>
+                <a href="#">
+                    <i class="fas fa-robot"></i>
+                    <span>Estratégias</span>
+                </a>
+                <a href="#">
+                    <i class="fas fa-history"></i>
+                    <span>Histórico</span>
+                </a>
+                <a href="#">
+                    <i class="fas fa-cog"></i>
+                    <span>Configurações</span>
+                </a>
+            </nav>
+
+            <div class="bot-status">
+                <div class="status-indicator online"></div>
+                <span>Bot Online</span>
+                <small>Última atualização: <span id="ultima-atualizacao">-</span></small>
+            </div>
+        </aside>
+
+        <!-- Conteúdo Principal -->
+        <main class="main-content">
+            <!-- Header com saldo -->
+            <header class="header">
+                <h1>Visão Geral do Portfolio</h1>
+                <div class="saldo-card">
+                    <small>Saldo Inicial</small>
+                    <h2>R$ 1.000,00</h2>
+                </div>
+                <div class="saldo-card atual">
+                    <small>Patrimônio Atual</small>
+                    <h2 id="patrimonio-atual">R$ 1.234,56</h2>
+                    <span id="variacao-total" class="positivo">+23.45%</span>
+                </div>
+            </header>
+
+            <!-- Cards de resumo -->
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-icon blue">
+                        <i class="fas fa-coins"></i>
+                    </div>
+                    <div class="card-info">
+                        <span class="label">Saldo Disponível</span>
+                        <span class="value" id="saldo-disponivel">R$ 567,89</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon green">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <div class="card-info">
+                        <span class="label">Em Criptomoedas</span>
+                        <span class="value" id="total-cripto">R$ 666,67</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon purple">
+                        <i class="fas fa-chart-bar"></i>
+                    </div>
+                    <div class="card-info">
+                        <span class="label">Total de Trades</span>
+                        <span class="value" id="total-trades">47</span>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-icon orange">
+                        <i class="fas fa-percent"></i>
+                    </div>
+                    <div class="card-info">
+                        <span class="label">Win Rate</span>
+                        <span class="value" id="win-rate">68%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gráficos -->
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>Evolução do Patrimônio</h3>
+                    <canvas id="chart-patrimonio"></canvas>
+                </div>
+                <div class="chart-card">
+                    <h3>Distribuição de Ativos</h3>
+                    <canvas id="chart-distribuicao"></canvas>
+                </div>
+            </div>
+
+            <!-- Posições Atuais -->
+            <div class="positions-section">
+                <h3>Posições Atuais</h3>
+                <div class="positions-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Ativo</th>
+                                <th>Quantidade</th>
+                                <th>Preço Médio</th>
+                                <th>Preço Atual</th>
+                                <th>Valor Total</th>
+                                <th>Lucro/Prejuízo</th>
+                                <th>%</th>
+                            </tr>
+                        </thead>
+                        <tbody id="posicoes-body">
+                            <!-- Preenchido pelo JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Últimas Operações do Bot -->
+            <div class="history-section">
+                <h3>Últimas Decisões do Bot</h3>
+                <div class="timeline" id="timeline">
+                    <!-- Preenchido pelo JavaScript -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
