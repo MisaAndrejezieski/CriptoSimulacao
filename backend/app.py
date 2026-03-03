@@ -1,14 +1,15 @@
 import atexit
+import time
 
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.interval import IntervalTrigger
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-# use relative imports so that the backend package can be imported cleanly
 from mercado import ColetorMercado
 from simulador import SimuladorCripto
 
 app = Flask(__name__)
-CORS(app)  # Permite requisições do front-end
+CORS(app)
 
 # Inicializa componentes
 coletor = ColetorMercado()
@@ -17,15 +18,29 @@ simulador = SimuladorCripto()
 # Lista de moedas para monitorar
 MOEDAS = ['BTC', 'ETH', 'BNB', 'ADA', 'DOT', 'LINK']
 
-# Atualiza preços a cada 10 segundos em background
+# Busca preços iniciais
+with app.app_context():
+    coletor.get_multiplos_precos(MOEDAS)
+
+# Configura o scheduler corretamente
 scheduler = BackgroundScheduler()
+
+# Configura o job com max_instances=1 e coalesce=True
 scheduler.add_job(
     func=lambda: coletor.get_multiplos_precos(MOEDAS),
-    trigger="interval",
-    seconds=10
+    trigger=IntervalTrigger(seconds=10),
+    id='atualizar_precos',
+    name='Atualizar preços das criptomoedas',
+    replace_existing=True,
+    max_instances=1,  # Permite apenas uma instância por vez
+    coalesce=True     # Se acumular execuções, roda apenas a última
 )
+
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
+
+# Pequena pausa para o scheduler iniciar
+time.sleep(1)
 
 @app.route('/api/precos', methods=['GET'])
 def get_precos():
@@ -102,3 +117,4 @@ def reset_carteira():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+    
