@@ -1,19 +1,55 @@
 {
-  "saldo_brl": 1000.0,
-  "moedas": {},
-  "historico": [],
+  "saldo_brl": 567.89,
+  "moedas": {
+    "BTC": 0.012345,
+    "ETH": 0.234567
+  },
+  "historico": [
+    {
+      "timestamp": "2026-03-04T10:00:00",
+      "tipo": "COMPRA",
+      "simbolo": "BTC",
+      "quantidade": 0.01,
+      "preco": 50000,
+      "valor_total": 500
+    },
+    {
+      "timestamp": "2026-03-04T11:00:00",
+      "tipo": "COMPRA",
+      "simbolo": "ETH",
+      "quantidade": 0.2,
+      "preco": 3000,
+      "valor_total": 600
+    },
+    {
+      "timestamp": "2026-03-04T12:00:00",
+      "tipo": "VENDA",
+      "simbolo": "BTC",
+      "quantidade": 0.005,
+      "preco": 52000,
+      "valor_total": 260
+    }
+  ],
   "historico_patrimonio": [
     {
-      "timestamp": "2026-03-04T17:04:32.665083",
+      "timestamp": "2026-03-04T09:00:00",
       "valor": 1000.0
     },
     {
-      "timestamp": "2026-03-04T17:05:07.442927",
-      "valor": 1000.0
+      "timestamp": "2026-03-04T10:00:00",
+      "valor": 500.0
     },
     {
-      "timestamp": "2026-03-04T17:05:43.502161",
-      "valor": 1000.0
+      "timestamp": "2026-03-04T11:00:00",
+      "valor": 900.0
+    },
+    {
+      "timestamp": "2026-03-04T12:00:00",
+      "valor": 1160.0
+    },
+    {
+      "timestamp": "2026-03-04T13:00:00",
+      "valor": 1234.56
     }
   ]
 }

@@ -1,0 +1,19 @@
+{
+  "include": [
+    "api",
+    "backend",
+    "bot"
+  ],
+  "pythonVersion": "3.12",
+  "pythonPath": "",
+  "typeCheckingMode": "basic",
+  "excludeExtraneousFiles": false,
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false,
+  "extraPaths": [
+    "backend",
+    "api",
+    "bot"
+  ],
+  "venvPath": ".venv"
+}

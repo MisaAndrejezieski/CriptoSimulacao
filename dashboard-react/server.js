@@ -13,6 +13,6 @@ app.get('/', (req, res) => {
 
 // Iniciar servidor
 app.listen(port, () => {
-    console.log(`🚀 CryptoBot Pro Dashboard rodando em http://localhost:${port}`);
-    console.log(`📊 Conectado à API em tempo real via WebSocket`);
+    console.log(`CryptoBot Pro Dashboard rodando em http://localhost:${port}`);
+    console.log(`Conectado à API em tempo real via WebSocket`);
 });

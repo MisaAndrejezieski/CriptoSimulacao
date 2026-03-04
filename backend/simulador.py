@@ -109,3 +109,66 @@ class SimuladorCripto:
             'total_cripto': round(total_cripto, 2),
             'patrimonio_total': round(self.carteira['saldo_brl'] + total_cripto, 2)
         }
+    
+    def iniciar_trading_automatico(self, simbolo, percentual_compra, percentual_venda, valor_investimento):
+        """Inicia trading automático com parâmetros definidos"""
+        self.trading_ativo = True
+        self.simbolo_trading = simbolo
+        self.percentual_compra = percentual_compra  # ex: -0.02 (2% abaixo)
+        self.percentual_venda = percentual_venda    # ex: 0.03 (3% acima)
+        self.valor_investimento = valor_investimento
+        self.preco_referencia = None  # Será definido na primeira execução
+        
+        return {'sucesso': True, 'mensagem': 'Trading automático iniciado'}
+    
+    def parar_trading_automatico(self):
+        """Para o trading automático"""
+        self.trading_ativo = False
+        return {'sucesso': True, 'mensagem': 'Trading automático parado'}
+    
+    def executar_trading_automatico(self, preco_atual):
+        """Executa uma rodada de trading automático baseado no preço atual"""
+        if not self.trading_ativo or not self.simbolo_trading:
+            return None
+        
+        simbolo = self.simbolo_trading
+        
+        # Define preço de referência na primeira execução
+        if self.preco_referencia is None:
+            self.preco_referencia = preco_atual
+            return {'acao': 'referencia_definida', 'preco': preco_atual}
+        
+        # Calcula percentual de variação
+        variacao = (preco_atual - self.preco_referencia) / self.preco_referencia
+        
+        resultado = None
+        
+        # Verifica se deve comprar (preço abaixo do percentual definido)
+        if variacao <= self.percentual_compra:
+            # Calcula quanto pode comprar com o valor de investimento
+            quantidade = self.valor_investimento / preco_atual
+            
+            # Verifica se tem saldo suficiente
+            if self.carteira['saldo_brl'] >= self.valor_investimento:
+                resultado = self.comprar(simbolo, quantidade, preco_atual)
+                if resultado['sucesso']:
+                    resultado['acao'] = 'compra'
+                    # Atualiza preço de referência após compra
+                    self.preco_referencia = preco_atual
+            else:
+                resultado = {'sucesso': False, 'mensagem': 'Saldo insuficiente para compra'}
+        
+        # Verifica se deve vender (preço acima do percentual definido)
+        elif variacao >= self.percentual_venda:
+            # Vende toda a posição atual
+            quantidade_atual = self.carteira['moedas'].get(simbolo, 0)
+            if quantidade_atual > 0:
+                resultado = self.vender(simbolo, quantidade_atual, preco_atual)
+                if resultado['sucesso']:
+                    resultado['acao'] = 'venda'
+                    # Atualiza preço de referência após venda
+                    self.preco_referencia = preco_atual
+            else:
+                resultado = {'sucesso': False, 'mensagem': 'Nenhuma posição para vender'}
+        
+        return resultado

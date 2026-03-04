@@ -1,14 +1,27 @@
 import json
 import os
+import sys
 from datetime import datetime, timedelta
 
-from flask import Flask, jsonify, send_from_directory
+# Adiciona backend ao path para importar simulador
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'backend'))
+
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
+from simulador import SimuladorCripto
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), '..', 'dashboard-react'), static_url_path='')
 CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
+
+# Instância global do simulador
+simulador = SimuladorCripto()
+
+@app.route('/')
+def serve_dashboard():
+    """Serve o dashboard React"""
+    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'dashboard-react'), 'index.html')
 
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard():
@@ -129,7 +142,7 @@ def handle_subscribe_prices(data):
 def handle_subscribe_portfolio(data):
     """Cliente solicita atualização do portfolio"""
     # Carrega dados do portfolio
-    carteira_path = os.path.join(os.path.dirname(__file__), '..', 'backend', 'carteira_default.json')
+    carteira_path = os.path.join(os.path.dirname(__file__), '..', 'carteira.json')
     
     if os.path.exists(carteira_path):
         with open(carteira_path, 'r') as f:
@@ -152,21 +165,49 @@ def handle_subscribe_portfolio(data):
         
         emit('portfolio_update', portfolio_data)
 
-@app.route('/dashboard/index.html')
-def serve_dashboard():
-    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'dashboard'), 'index.html')
+# Endpoints para controle do trading automático
+@app.route('/api/trading/start', methods=['POST'])
+def start_trading():
+    """Inicia trading automático"""
+    data = request.get_json()
+    
+    simbolo = data.get('simbolo', 'BTC')
+    percentual_compra = data.get('percentual_compra', -0.02)  # -2%
+    percentual_venda = data.get('percentual_venda', 0.03)     # +3%
+    valor_investimento = data.get('valor_investimento', 100)  # R$ 100 por trade
+    
+    resultado = simulador.iniciar_trading_automatico(
+        simbolo, percentual_compra, percentual_venda, valor_investimento
+    )
+    
+    if resultado['sucesso']:
+        # Notifica via WebSocket
+        socketio.emit('trading_status', {'ativo': True, 'simbolo': simbolo})
+    
+    return jsonify(resultado)
 
-@app.route('/frontend/index.html')
-def serve_frontend():
-    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'frontend'), 'index.html')
+@app.route('/api/trading/stop', methods=['POST'])
+def stop_trading():
+    """Para trading automático"""
+    resultado = simulador.parar_trading_automatico()
+    
+    if resultado['sucesso']:
+        # Notifica via WebSocket
+        socketio.emit('trading_status', {'ativo': False})
+    
+    return jsonify(resultado)
 
-@app.route('/dashboard/<path:filename>')
-def serve_dashboard_files(filename):
-    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'dashboard'), filename)
-
-@app.route('/frontend/<path:filename>')
-def serve_frontend_files(filename):
-    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'frontend'), filename)
+@app.route('/api/trading/status', methods=['GET'])
+def get_trading_status():
+    """Retorna status do trading automático"""
+    return jsonify({
+        'ativo': getattr(simulador, 'trading_ativo', False),
+        'simbolo': getattr(simulador, 'simbolo_trading', None),
+        'percentual_compra': getattr(simulador, 'percentual_compra', None),
+        'percentual_venda': getattr(simulador, 'percentual_venda', None),
+        'valor_investimento': getattr(simulador, 'valor_investimento', None),
+        'preco_referencia': getattr(simulador, 'preco_referencia', None)
+    })
 
 if __name__ == '__main__':
     print("🚀 Iniciando API com WebSocket...")

@@ -16,10 +16,27 @@ function App() {
     const [isConnected, setIsConnected] = useState(false);
     const [charts, setCharts] = useState({});
     const [currentView, setCurrentView] = useState('dashboard');
+    
+    // Estado do trading automático
+    const [tradingConfig, setTradingConfig] = useState({
+        ativo: false,
+        simbolo: 'BTC',
+        percentual_compra: -0.02,
+        percentual_venda: 0.03,
+        valor_investimento: 100
+    });
+    
+    const [selectedCoin, setSelectedCoin] = useState('BTC');
+    const [coinHistory, setCoinHistory] = useState([]);
 
     // Conexão WebSocket
     useEffect(() => {
-        const socket = io('http://localhost:5001');
+        // Para produção, usar o mesmo host na porta 5001
+        const apiUrl = window.location.hostname === 'localhost' 
+            ? 'http://localhost:5001' 
+            : `http://${window.location.hostname}:5001`;
+        
+        const socket = io(apiUrl);
 
         socket.on('connect', () => {
             console.log('🔗 Conectado ao servidor WebSocket');
@@ -36,11 +53,16 @@ function App() {
         socket.on('prices_update', (data) => {
             console.log('💰 Preços atualizados:', data);
             setPrecos(data);
+            updateCoinHistory(data);
         });
 
         socket.on('portfolio_update', (data) => {
             console.log('📊 Portfolio atualizado:', data);
             setPortfolio(data);
+        });
+
+        socket.on('trading_status', (data) => {
+            setTradingConfig(prev => ({ ...prev, ativo: data.ativo, simbolo: data.simbolo || prev.simbolo }));
         });
 
         // Atualização periódica como fallback
@@ -63,43 +85,21 @@ function App() {
         }
     }, [portfolio]);
 
-    const inicializarGraficos = () => {
-        // Gráfico de Patrimônio
-        const ctxPatrimonio = document.getElementById('chart-patrimonio');
-        if (ctxPatrimonio && !charts.patrimonio) {
-            const chart = new Chart(ctxPatrimonio, {
-                type: 'line',
-                data: {
-                    labels: portfolio.historico_patrimonio.map(h => new Date(h.timestamp).toLocaleTimeString()),
-                    datasets: [{
-                        label: 'Patrimônio (R$)',
-                        data: portfolio.historico_patrimonio.map(h => h.valor),
-                        borderColor: '#ffd700',
-                        backgroundColor: 'rgba(255, 215, 0, 0.1)',
-                        tension: 0.4,
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: false,
-                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
-                        },
-                        x: {
-                            grid: { display: false }
-                        }
-                    }
-                }
+    const updateCoinHistory = (newPrices) => {
+        if (newPrices[selectedCoin]) {
+            setCoinHistory(prev => {
+                const newEntry = {
+                    timestamp: new Date(),
+                    price: newPrices[selectedCoin].preco
+                };
+                const updated = [...prev, newEntry];
+                // Mantém apenas últimas 50 entradas
+                return updated.slice(-50);
             });
-            setCharts(prev => ({ ...prev, patrimonio: chart }));
         }
+    };
 
+    const inicializarGraficos = () => {
         // Gráfico de Distribuição
         const ctxDistribuicao = document.getElementById('chart-distribuicao');
         if (ctxDistribuicao && !charts.distribuicao) {
@@ -124,6 +124,42 @@ function App() {
                 }
             });
             setCharts(prev => ({ ...prev, distribuicao: chart }));
+        }
+
+        // Gráfico da Moeda Selecionada
+        const ctxCoin = document.getElementById('chart-coin');
+        if (ctxCoin && !charts.coin) {
+            const chart = new Chart(ctxCoin, {
+                type: 'line',
+                data: {
+                    labels: coinHistory.map(h => h.timestamp.toLocaleTimeString()),
+                    datasets: [{
+                        label: `${selectedCoin} (R$)`,
+                        data: coinHistory.map(h => h.price),
+                        borderColor: '#ffd700',
+                        backgroundColor: 'rgba(255, 215, 0, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+            setCharts(prev => ({ ...prev, coin: chart }));
         }
     };
 
@@ -164,6 +200,51 @@ function App() {
         return (valor >= 0 ? '+' : '') + valor.toFixed(2) + '%';
     };
 
+    const iniciarTrading = async () => {
+        try {
+            const response = await fetch('http://localhost:5001/api/trading/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(tradingConfig)
+            });
+            const result = await response.json();
+            if (result.sucesso) {
+                setTradingConfig(prev => ({ ...prev, ativo: true }));
+                alert('Trading automático iniciado!');
+            } else {
+                alert('Erro ao iniciar trading: ' + result.mensagem);
+            }
+        } catch (error) {
+            alert('Erro de conexão: ' + error.message);
+        }
+    };
+
+    const pararTrading = async () => {
+        try {
+            const response = await fetch('http://localhost:5001/api/trading/stop', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const result = await response.json();
+            if (result.sucesso) {
+                setTradingConfig(prev => ({ ...prev, ativo: false }));
+                alert('Trading automático parado!');
+            }
+        } catch (error) {
+            alert('Erro de conexão: ' + error.message);
+        }
+    };
+
+    const valorInvestido = () => {
+        let total = 0;
+        Object.entries(portfolio.posicoes).forEach(([simbolo, quantidade]) => {
+            if (precos[simbolo]) {
+                total += quantidade * precos[simbolo].preco;
+            }
+        });
+        return total;
+    };
+
     const renderMainContent = () => {
         switch (currentView) {
             case 'dashboard':
@@ -175,52 +256,138 @@ function App() {
                             <p>Acompanhe o desempenho do seu bot em tempo real</p>
                         </div>
 
+                        {/* Trading Controls */}
+                        <div className="card" style={{ marginBottom: '30px' }}>
+                            <div style={{ padding: '20px' }}>
+                                <h3 style={{ marginBottom: '20px', color: 'var(--gold-primary)' }}>Controle de Trading</h3>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '5px', color: 'var(--text-secondary)' }}>Moeda</label>
+                                        <select 
+                                            value={tradingConfig.simbolo} 
+                                            onChange={(e) => setTradingConfig(prev => ({ ...prev, simbolo: e.target.value }))}
+                                            style={{ width: '100%', padding: '8px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                                        >
+                                            <option value="BTC">Bitcoin (BTC)</option>
+                                            <option value="ETH">Ethereum (ETH)</option>
+                                            <option value="BNB">Binance Coin (BNB)</option>
+                                            <option value="ADA">Cardano (ADA)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '5px', color: 'var(--text-secondary)' }}>Compra (% abaixo)</label>
+                                        <input 
+                                            type="number" 
+                                            step="0.01" 
+                                            value={tradingConfig.percentual_compra * 100} 
+                                            onChange={(e) => setTradingConfig(prev => ({ ...prev, percentual_compra: parseFloat(e.target.value) / 100 }))}
+                                            style={{ width: '100%', padding: '8px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '5px', color: 'var(--text-secondary)' }}>Venda (% acima)</label>
+                                        <input 
+                                            type="number" 
+                                            step="0.01" 
+                                            value={tradingConfig.percentual_venda * 100} 
+                                            onChange={(e) => setTradingConfig(prev => ({ ...prev, percentual_venda: parseFloat(e.target.value) / 100 }))}
+                                            style={{ width: '100%', padding: '8px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '5px', color: 'var(--text-secondary)' }}>Valor por Trade (R$)</label>
+                                        <input 
+                                            type="number" 
+                                            value={tradingConfig.valor_investimento} 
+                                            onChange={(e) => setTradingConfig(prev => ({ ...prev, valor_investimento: parseFloat(e.target.value) }))}
+                                            style={{ width: '100%', padding: '8px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                                        />
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '10px' }}>
+                                    {!tradingConfig.ativo ? (
+                                        <button 
+                                            onClick={iniciarTrading}
+                                            style={{ 
+                                                background: 'var(--success)', 
+                                                color: 'white', 
+                                                border: 'none', 
+                                                padding: '12px 24px', 
+                                                borderRadius: '8px', 
+                                                cursor: 'pointer',
+                                                fontWeight: '600'
+                                            }}
+                                        >
+                                            <i className="fas fa-play"></i> Iniciar Trading
+                                        </button>
+                                    ) : (
+                                        <button 
+                                            onClick={pararTrading}
+                                            style={{ 
+                                                background: 'var(--danger)', 
+                                                color: 'white', 
+                                                border: 'none', 
+                                                padding: '12px 24px', 
+                                                borderRadius: '8px', 
+                                                cursor: 'pointer',
+                                                fontWeight: '600'
+                                            }}
+                                        >
+                                            <i className="fas fa-stop"></i> Parar Trading
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
                         {/* Portfolio Cards */}
                         <div className="portfolio-cards">
                             <div className="card card-gold">
                                 <div className="card-header">
-                                    <span className="card-title">Saldo Inicial</span>
+                                    <span className="card-title">Saldo em Carteira</span>
                                     <i className="fas fa-wallet"></i>
                                 </div>
-                                <div className="card-value">R$ 1.000,00</div>
+                                <div className="card-value">{formatarMoeda(portfolio.saldo_brl)}</div>
                                 <div className="card-footer">
-                                    <span className="badge">Capital inicial</span>
+                                    <span className="badge">Disponível</span>
                                 </div>
                             </div>
 
                             <div className="card card-gradient">
                                 <div className="card-header">
-                                    <span className="card-title">Patrimônio Atual</span>
+                                    <span className="card-title">Valor Investido</span>
                                     <i className="fas fa-chart-line"></i>
                                 </div>
-                                <div className="card-value" id="patrimonio-atual">{formatarMoeda(portfolio.patrimonio_total)}</div>
+                                <div className="card-value">{formatarMoeda(valorInvestido())}</div>
                                 <div className="card-footer">
                                     <span className={`variacao ${portfolio.variacao_total >= 0 ? 'positiva' : 'negativa'}`}>
                                         <i className="fas fa-arrow-up"></i> {formatarPercentual(portfolio.variacao_total)}
                                     </span>
-                                    <span className="badge">Últimos 30 dias</span>
+                                    <span className="badge">Em tempo real</span>
                                 </div>
                             </div>
 
                             <div className="card">
                                 <div className="card-header">
-                                    <span className="card-title">Saldo Disponível</span>
+                                    <span className="card-title">Patrimônio Total</span>
                                     <i className="fas fa-coins"></i>
                                 </div>
-                                <div className="card-value" id="saldo-disponivel">{formatarMoeda(portfolio.saldo_brl)}</div>
+                                <div className="card-value">{formatarMoeda(portfolio.patrimonio_total)}</div>
                                 <div className="card-footer">
-                                    <span className="badge">Em BRL</span>
+                                    <span className="badge">Carteira + Investido</span>
                                 </div>
                             </div>
 
                             <div className="card">
                                 <div className="card-header">
-                                    <span className="card-title">Em Criptomoedas</span>
+                                    <span className="card-title">Preço {selectedCoin}</span>
                                     <i className="fas fa-bitcoin"></i>
                                 </div>
-                                <div className="card-value" id="total-cripto">{formatarMoeda(portfolio.total_cripto)}</div>
+                                <div className="card-value">
+                                    {precos[selectedCoin] ? formatarMoeda(precos[selectedCoin].preco) : 'Carregando...'}
+                                </div>
                                 <div className="card-footer">
-                                    <span className="badge">Valor de mercado</span>
+                                    <span className="badge">Cotação atual</span>
                                 </div>
                             </div>
                         </div>
@@ -231,20 +398,20 @@ function App() {
                                 <i className="fas fa-chart-bar stat-icon gold"></i>
                                 <div className="stat-info">
                                     <span className="stat-label">Total de Trades</span>
-                                    <span className="stat-number" id="total-trades">{portfolio.ultimas_operacoes.length}</span>
+                                    <span className="stat-number">{portfolio.ultimas_operacoes.length}</span>
                                 </div>
                             </div>
                             <div className="stat-card">
                                 <i className="fas fa-clock stat-icon gold"></i>
                                 <div className="stat-info">
-                                    <span className="stat-label">Tempo Online</span>
-                                    <span className="stat-number">24h</span>
+                                    <span className="stat-label">Status</span>
+                                    <span className="stat-number">{tradingConfig.ativo ? 'Ativo' : 'Inativo'}</span>
                                 </div>
                             </div>
                             <div className="stat-card">
                                 <i className="fas fa-signal stat-icon gold"></i>
                                 <div className="stat-info">
-                                    <span className="stat-label">Status</span>
+                                    <span className="stat-label">Conexão</span>
                                     <span className="stat-number">{isConnected ? 'Online' : 'Offline'}</span>
                                 </div>
                             </div>
@@ -252,7 +419,7 @@ function App() {
                                 <i className="fas fa-robot stat-icon gold"></i>
                                 <div className="stat-info">
                                     <span className="stat-label">Modo</span>
-                                    <span className="stat-number">Automático</span>
+                                    <span className="stat-number">{tradingConfig.ativo ? 'Automático' : 'Manual'}</span>
                                 </div>
                             </div>
                         </div>
@@ -261,14 +428,12 @@ function App() {
                         <div className="charts-section">
                             <div className="chart-container">
                                 <div className="chart-header">
-                                    <h3>Evolução do Patrimônio</h3>
+                                    <h3>Gráfico de {selectedCoin}</h3>
                                     <div className="chart-periods">
-                                        <button className="period-btn active">1D</button>
-                                        <button className="period-btn">7D</button>
-                                        <button className="period-btn">30D</button>
+                                        <button className="period-btn active">Tempo Real</button>
                                     </div>
                                 </div>
-                                <canvas id="chart-patrimonio"></canvas>
+                                <canvas id="chart-coin"></canvas>
                             </div>
 
                             <div className="chart-container small">
@@ -282,15 +447,67 @@ function App() {
                 );
             case 'historico':
                 return (
-                    <div className="welcome-section">
-                        <h1>Histórico de <span className="gold">Trades</span></h1>
-                        <p>Veja todas as operações realizadas pelo bot</p>
-                        <div className="card" style={{ marginTop: '30px' }}>
-                            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                Funcionalidade em desenvolvimento
+                    <>
+                        <div className="welcome-section">
+                            <h1>Histórico de <span className="gold">Trades</span></h1>
+                            <p>Veja todas as operações realizadas pelo bot</p>
+                        </div>
+                        <div className="card">
+                            <div style={{ padding: '20px' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                                    <thead>
+                                        <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                                            <th style={{ padding: '12px', textAlign: 'left', color: 'var(--text-secondary)' }}>Data</th>
+                                            <th style={{ padding: '12px', textAlign: 'left', color: 'var(--text-secondary)' }}>Tipo</th>
+                                            <th style={{ padding: '12px', textAlign: 'left', color: 'var(--text-secondary)' }}>Ativo</th>
+                                            <th style={{ padding: '12px', textAlign: 'right', color: 'var(--text-secondary)' }}>Quantidade</th>
+                                            <th style={{ padding: '12px', textAlign: 'right', color: 'var(--text-secondary)' }}>Preço</th>
+                                            <th style={{ padding: '12px', textAlign: 'right', color: 'var(--text-secondary)' }}>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {portfolio.ultimas_operacoes.map((op, index) => (
+                                            <tr key={index} style={{ borderBottom: '1px solid var(--border)' }}>
+                                                <td style={{ padding: '12px', color: 'var(--text-primary)' }}>
+                                                    {new Date(op.timestamp).toLocaleString('pt-BR')}
+                                                </td>
+                                                <td style={{ padding: '12px' }}>
+                                                    <span style={{
+                                                        padding: '4px 8px',
+                                                        borderRadius: '4px',
+                                                        fontSize: '11px',
+                                                        background: op.tipo === 'COMPRA' ? 'var(--success-light)' : 'var(--danger-light)',
+                                                        color: op.tipo === 'COMPRA' ? 'var(--success)' : 'var(--danger)'
+                                                    }}>
+                                                        {op.tipo}
+                                                    </span>
+                                                </td>
+                                                <td style={{ padding: '12px', fontWeight: '600', color: 'var(--text-primary)' }}>
+                                                    {op.simbolo}
+                                                </td>
+                                                <td style={{ padding: '12px', textAlign: 'right', color: 'var(--text-primary)' }}>
+                                                    {op.quantidade}
+                                                </td>
+                                                <td style={{ padding: '12px', textAlign: 'right', color: 'var(--text-primary)' }}>
+                                                    R$ {op.preco?.toFixed(2) || '0.00'}
+                                                </td>
+                                                <td style={{ padding: '12px', textAlign: 'right', color: 'var(--text-primary)' }}>
+                                                    R$ {op.total?.toFixed(2) || '0.00'}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        {portfolio.ultimas_operacoes.length === 0 && (
+                                            <tr>
+                                                <td colSpan="6" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-secondary)' }}>
+                                                    Nenhuma operação realizada ainda
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
-                    </div>
+                    </>
                 );
             case 'estrategias':
                 return (
@@ -299,7 +516,7 @@ function App() {
                         <p>Configure e monitore suas estratégias automatizadas</p>
                         <div className="card" style={{ marginTop: '30px' }}>
                             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                Funcionalidade em desenvolvimento
+                                Estratégia atual: Compra em {tradingConfig.percentual_compra * 100}% abaixo, venda em {tradingConfig.percentual_venda * 100}% acima
                             </div>
                         </div>
                     </div>
@@ -311,7 +528,7 @@ function App() {
                         <p>Relatórios detalhados e métricas de performance</p>
                         <div className="card" style={{ marginTop: '30px' }}>
                             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                Funcionalidade em desenvolvimento
+                                Análises em desenvolvimento
                             </div>
                         </div>
                     </div>
@@ -323,7 +540,7 @@ function App() {
                         <p>Ajuste os parâmetros do seu bot de trading</p>
                         <div className="card" style={{ marginTop: '30px' }}>
                             <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                Funcionalidade em desenvolvimento
+                                Configurações em desenvolvimento
                             </div>
                         </div>
                     </div>
@@ -351,7 +568,7 @@ function App() {
                         <span className="stat-label">Status do Bot</span>
                         <div className="stat-value status-online">
                             <span className="dot"></span>
-                            {isConnected ? 'Online' : 'Offline'}
+                            {tradingConfig.ativo ? 'Trading' : 'Parado'}
                         </div>
                     </div>
                     <div className="stat-item">
@@ -395,7 +612,7 @@ function App() {
                     <div className="sidebar-footer">
                         <div className="user-info">
                             <i className="fas fa-user-circle"></i>
-                            <span>Modo Automático</span>
+                            <span>Modo {tradingConfig.ativo ? 'Automático' : 'Manual'}</span>
                         </div>
                     </div>
                 </aside>

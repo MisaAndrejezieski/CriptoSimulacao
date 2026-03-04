@@ -36,6 +36,26 @@ scheduler.add_job(
     coalesce=True     # Se acumular execuções, roda apenas a última
 )
 
+# Job para executar trading automático
+def executar_trading():
+    if hasattr(simulador, 'trading_ativo') and simulador.trading_ativo:
+        simbolo = simulador.simbolo_trading
+        if simbolo and simbolo in coletor.precos_cache:
+            preco_atual = coletor.precos_cache[simbolo]['preco']
+            resultado = simulador.executar_trading_automatico(preco_atual)
+            if resultado and resultado.get('sucesso'):
+                print(f"🤖 Trade executado: {resultado['acao']} de {simbolo} a R$ {preco_atual}")
+
+scheduler.add_job(
+    func=executar_trading,
+    trigger=IntervalTrigger(seconds=5),  # Verifica a cada 5 segundos
+    id='executar_trading',
+    name='Executar trading automático',
+    replace_existing=True,
+    max_instances=1,
+    coalesce=True
+)
+
 scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
@@ -114,6 +134,40 @@ def reset_carteira():
     global simulador
     simulador = SimuladorCripto()
     return jsonify({'sucesso': True, 'mensagem': 'Carteira resetada'})
+
+@app.route('/api/trading/start', methods=['POST'])
+def start_trading():
+    """Inicia trading automático"""
+    data = request.get_json()
+    
+    simbolo = data.get('simbolo', 'BTC')
+    percentual_compra = data.get('percentual_compra', -0.02)  # -2%
+    percentual_venda = data.get('percentual_venda', 0.03)     # +3%
+    valor_investimento = data.get('valor_investimento', 100)  # R$ 100 por trade
+    
+    resultado = simulador.iniciar_trading_automatico(
+        simbolo, percentual_compra, percentual_venda, valor_investimento
+    )
+    
+    return jsonify(resultado)
+
+@app.route('/api/trading/stop', methods=['POST'])
+def stop_trading():
+    """Para trading automático"""
+    resultado = simulador.parar_trading_automatico()
+    return jsonify(resultado)
+
+@app.route('/api/trading/status', methods=['GET'])
+def get_trading_status():
+    """Retorna status do trading automático"""
+    return jsonify({
+        'ativo': getattr(simulador, 'trading_ativo', False),
+        'simbolo': getattr(simulador, 'simbolo_trading', None),
+        'percentual_compra': getattr(simulador, 'percentual_compra', None),
+        'percentual_venda': getattr(simulador, 'percentual_venda', None),
+        'valor_investimento': getattr(simulador, 'valor_investimento', None),
+        'preco_referencia': getattr(simulador, 'preco_referencia', None)
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
