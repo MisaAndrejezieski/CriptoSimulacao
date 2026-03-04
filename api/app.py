@@ -2,7 +2,7 @@ import json
 import os
 from datetime import datetime, timedelta
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 
 app = Flask(__name__)
@@ -13,7 +13,7 @@ def get_dashboard():
     """Fornece dados completos para o dashboard"""
     
     # Carrega estado atual do bot
-    carteira_path = os.path.join(os.path.dirname(__file__), '..', 'bot', 'carteira.json')
+    carteira_path = os.path.join(os.path.dirname(__file__), '..', 'backend', 'carteira_default.json')
     
     if os.path.exists(carteira_path):
         with open(carteira_path, 'r') as f:
@@ -116,6 +116,22 @@ def get_status():
         'status': 'online',
         'timestamp': datetime.now().isoformat()
     })
+
+@app.route('/dashboard/index.html')
+def serve_dashboard():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'dashboard'), 'index.html')
+
+@app.route('/frontend/index.html')
+def serve_frontend():
+    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'frontend'), 'index.html')
+
+@app.route('/dashboard/<path:filename>')
+def serve_dashboard_files(filename):
+    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'dashboard'), filename)
+
+@app.route('/frontend/<path:filename>')
+def serve_frontend_files(filename):
+    return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'frontend'), filename)
 
 if __name__ == '__main__':
     app.run(debug=True, port=5001)

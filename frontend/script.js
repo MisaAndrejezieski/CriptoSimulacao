@@ -211,94 +211,89 @@ function adicionarFooterGrafico() {
     }
 }
 
-function atualizarDistribuicaoLista(distribuicao) {
-    const lista = document.getElementById('distribuicao-lista');
-    if (!lista) return;
+function atualizarDashboard(data) {
+    document.getElementById('patrimonio-atual').textContent = 
+        formatarMoeda(data.patrimonio_total);
     
-    lista.innerHTML = distribuicao.map(item => `
-        <div class="distribution-item">
-            <div class="distribution-info">
-                <span class="distribution-symbol">${item.simbolo}</span>
-                <span class="distribution-value">R$ ${item.valor.toLocaleString('pt-BR')}</span>
-            </div>
-            <div class="distribution-bar-container">
-                <div class="distribution-bar">
-                    <div class="distribution-fill" style="width: ${item.percentual}%"></div>
-                </div>
-                <span class="distribution-percent">${item.percentual}%</span>
-            </div>
-        </div>
-    `).join('');
+    const variacao = data.variacao_total || 0;
+    const variacaoEl = document.getElementById('variacao-total');
+    variacaoEl.innerHTML = variacao >= 0 
+        ? `<i class="fas fa-arrow-up"></i> +${variacao.toFixed(2)}%`
+        : `<i class="fas fa-arrow-down"></i> ${variacao.toFixed(2)}%`;
+    variacaoEl.className = `variacao ${variacao >= 0 ? 'positiva' : 'negativa'}`;
+    
+    document.getElementById('saldo-disponivel').textContent = 
+        formatarMoeda(data.saldo_brl);
+    document.getElementById('total-cripto').textContent = 
+        formatarMoeda(data.total_cripto);
+    document.getElementById('total-trades').textContent = 
+        data.total_trades || 0;
+    document.getElementById('win-rate').textContent = 
+        (data.win_rate || 0) + '%';
+    document.getElementById('trades-hoje').textContent = '0'; // Placeholder
+    document.getElementById('melhor-trade').textContent = '+0%'; // Placeholder
 }
 
-function atualizarGraficoPatrimonio(novoValor) {
-    if (!patrimonioChart) return;
-    
-    // Adicionar novo dado
-    const agora = new Date();
-    const horaAtual = agora.getHours().toString().padStart(2, '0') + ':00';
-    
-    patrimonioChart.data.labels.push(horaAtual);
-    patrimonioChart.data.datasets[0].data.push(novoValor);
-    
-    // Manter apenas últimas 24 horas
-    if (patrimonioChart.data.labels.length > 25) {
-        patrimonioChart.data.labels.shift();
-        patrimonioChart.data.datasets[0].data.shift();
+function atualizarCharts(data) {
+    // Atualiza chart de patrimônio
+    if (data.historico_patrimonio && patrimonioChart) {
+        // Use real data if available, otherwise keep mock data
+        if (data.historico_patrimonio.length > 0) {
+            patrimonioChart.data.labels = data.historico_patrimonio.map(h => 
+                new Date(h.timestamp).toLocaleTimeString()
+            );
+            patrimonioChart.data.datasets[0].data = 
+                data.historico_patrimonio.map(h => h.valor);
+            patrimonioChart.update();
+        }
     }
     
-    patrimonioChart.update();
+    // Atualiza chart de distribuição
+    if (data.distribuicao && distribuicaoChart) {
+        distribuicaoChart.data.labels = data.distribuicao.map(d => d.simbolo);
+        distribuicaoChart.data.datasets[0].data = 
+            data.distribuicao.map(d => d.percentual);
+        distribuicaoChart.update();
+        
+        // Atualizar lista de distribuição
+        atualizarDistribuicaoLista(data.distribuicao.map(d => ({
+            simbolo: d.simbolo,
+            percentual: d.percentual,
+            valor: (d.percentual / 100) * data.patrimonio_total
+        })));
+    }
 }
 
 async function carregarDados() {
     try {
-        // Simular dados da API
-        const patrimonioAtual = 1234567.89;
+        const response = await fetch(`${API_URL}/dashboard`);
+        const data = await response.json();
         
-        // Atualizar cards
-        document.getElementById('patrimonio-atual').textContent = 
-            formatarMoeda(patrimonioAtual);
-        
-        // Calcular variação
-        const variacao = 23.45;
-        const variacaoEl = document.getElementById('variacao-total');
-        variacaoEl.innerHTML = variacao >= 0 
-            ? `<i class="fas fa-arrow-up"></i> +${variacao.toFixed(2)}%`
-            : `<i class="fas fa-arrow-down"></i> ${variacao.toFixed(2)}%`;
-        variacaoEl.className = `variacao ${variacao >= 0 ? 'positiva' : 'negativa'}`;
-        
-        // Atualizar outros valores
-        document.getElementById('saldo-disponivel').textContent = formatarMoeda(567890.12);
-        document.getElementById('total-cripto').textContent = formatarMoeda(666777.89);
-        document.getElementById('total-trades').textContent = '47';
-        document.getElementById('win-rate').textContent = '68%';
-        document.getElementById('trades-hoje').textContent = '12';
-        document.getElementById('melhor-trade').textContent = '+8.5%';
-        
-        // Atualizar gráfico com novo valor
-        atualizarGraficoPatrimonio(patrimonioAtual);
-        
-        // Atualizar posições
-        atualizarPosicoes();
-        
-        // Atualizar timeline
-        atualizarTimeline();
+        atualizarDashboard(data);
+        atualizarPosicoes(data.posicoes);
+        atualizarTimeline(data.ultimas_operacoes);
+        atualizarCharts(data);
+        atualizarUltimaAtualizacao();
         
     } catch (error) {
         console.error('Erro ao carregar dados:', error);
     }
 }
 
-function atualizarPosicoes() {
+function atualizarPosicoes(posicoes) {
     const tbody = document.getElementById('posicoes-body');
     if (!tbody) return;
     
-    const posicoes = [
-        { simbolo: 'BTC', quantidade: 0.004523, preco_medio: 45231.50, preco_atual: 48234.20 },
-        { simbolo: 'ETH', quantidade: 0.123456, preco_medio: 3245.80, preco_atual: 3567.90 },
-        { simbolo: 'BNB', quantidade: 0.567890, preco_medio: 456.70, preco_atual: 489.30 },
-        { simbolo: 'ADA', quantidade: 15.678, preco_medio: 0.42, preco_atual: 0.48 }
-    ];
+    if (!posicoes || posicoes.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
+                    Nenhuma posição aberta no momento
+                </td>
+            </tr>
+        `;
+        return;
+    }
     
     tbody.innerHTML = posicoes.map(pos => {
         const valor_total = pos.quantidade * pos.preco_atual;
@@ -321,44 +316,18 @@ function atualizarPosicoes() {
     }).join('');
 }
 
-function atualizarTimeline() {
+function atualizarTimeline(operacoes) {
     const timeline = document.getElementById('timeline-container');
     if (!timeline) return;
     
-    const operacoes = [
-        { 
-            tipo: 'COMPRA', 
-            simbolo: 'BTC', 
-            quantidade: 0.001234, 
-            preco: 48234.20, 
-            timestamp: new Date(),
-            motivo: 'RSI sobrevendido'
-        },
-        { 
-            tipo: 'VENDA', 
-            simbolo: 'ETH', 
-            quantidade: 0.056789, 
-            preco: 3567.90, 
-            timestamp: new Date(Date.now() - 900000),
-            motivo: 'Resistência atingida'
-        },
-        { 
-            tipo: 'COMPRA', 
-            simbolo: 'BNB', 
-            quantidade: 0.123456, 
-            preco: 489.30, 
-            timestamp: new Date(Date.now() - 1800000),
-            motivo: 'Cruzamento de médias'
-        },
-        { 
-            tipo: 'COMPRA', 
-            simbolo: 'ADA', 
-            quantidade: 15.678, 
-            preco: 0.48, 
-            timestamp: new Date(Date.now() - 3600000),
-            motivo: 'Suporte identificado'
-        }
-    ];
+    if (!operacoes || operacoes.length === 0) {
+        timeline.innerHTML = `
+            <div style="text-align: center; padding: 40px; color: #64748b;">
+                Nenhuma operação realizada ainda
+            </div>
+        `;
+        return;
+    }
     
     timeline.innerHTML = operacoes.map(op => {
         const horario = new Date(op.timestamp).toLocaleTimeString('pt-BR', {
@@ -376,7 +345,7 @@ function atualizarTimeline() {
                         <h4>${op.tipo} ${op.simbolo}</h4>
                         <span class="timeline-time">${horario}</span>
                     </div>
-                    <p class="timeline-motivo">${op.motivo}</p>
+                    <p class="timeline-motivo">Decisão automática do bot</p>
                     <p class="timeline-detalhes">
                         ${op.quantidade.toFixed(6)} unidades • R$ ${formatarNumero(op.preco)}
                     </p>

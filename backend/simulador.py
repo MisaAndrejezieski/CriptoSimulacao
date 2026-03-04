@@ -19,7 +19,8 @@ class SimuladorCripto:
             return {
                 'saldo_brl': self.saldo_inicial,
                 'moedas': {},  # {'BTC': 0.001, 'ETH': 0.5}
-                'historico': []
+                'historico': [],
+                'historico_patrimonio': []
             }
     
     def salvar_carteira(self):
