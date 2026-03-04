@@ -1,11 +1,43 @@
 // Configuração
 const API_URL = 'http://localhost:5001/api';
 
+// Tenta portas alternativas se a principal não funcionar
+const APIs_DISPONIVEIS = [
+    'http://localhost:5001/api',
+    'http://127.0.0.1:5001/api',
+    'http://localhost:5000/api',
+    'http://127.0.0.1:5000/api'
+];
+
 // Charts
 let patrimonioChart, distribuicaoChart;
+let apiAtual = API_URL;
+
+// Função para encontrar a API disponível
+async function encontrarAPIDisponivel() {
+    for (const url of APIs_DISPONIVEIS) {
+        try {
+            const response = await fetch(`${url}/dashboard`, { method: 'HEAD' });
+            if (response.ok || response.status === 404) {
+                console.log("✅ API encontrada em:", url);
+                apiAtual = url;
+                return url;
+            }
+        } catch (e) {
+            // Continua tentando
+        }
+    }
+    console.error("❌ Nenhuma API disponível encontrada");
+    return null;
+}
 
 // Inicialização
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log("🚀 Iniciando dashboard...");
+    
+    // Tenta encontrar API
+    await encontrarAPIDisponivel();
+    
     iniciarCharts();
     carregarDados();
     setInterval(carregarDados, 5000); // Atualiza a cada 5 segundos
@@ -85,7 +117,12 @@ function iniciarCharts() {
 
 async function carregarDados() {
     try {
-        const response = await fetch(`${API_URL}/dashboard`);
+        const response = await fetch(`${apiAtual}/dashboard`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
         const data = await response.json();
         
         atualizarDashboard(data);
@@ -95,7 +132,14 @@ async function carregarDados() {
         atualizarUltimaAtualizacao();
         
     } catch (error) {
-        console.error('Erro ao carregar dados:', error);
+        console.error('❌ Erro ao carregar dados:', error.message);
+        console.error('API tentada:', apiAtual);
+        
+        // Se a primeira tentativa falhar, tenta encontrar API novamente
+        if (apiAtual === API_URL) {
+            console.log("🔄 Procurando API alternativa...");
+            await encontrarAPIDisponivel();
+        }
     }
 }
 

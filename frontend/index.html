@@ -271,5 +271,51 @@
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="script.js"></script>
+    
+    <!-- Script de Diagnóstico -->
+    <script>
+        console.log("=== DIAGNÓSTICO DO FRONTEND ===");
+        console.log("Página carregada em:", new Date().toLocaleTimeString('pt-BR'));
+        
+        // Verifica funções carregadas
+        const funcoes = {
+            atualizarDashboard: typeof atualizarDashboard,
+            atualizarDistribuicaoLista: typeof atualizarDistribuicaoLista,
+            atualizarPosicoes: typeof atualizarPosicoes,
+            atualizarTimeline: typeof atualizarTimeline,
+            atualizarCharts: typeof atualizarCharts,
+            carregarDados: typeof carregarDados,
+            iniciarCharts: typeof iniciarCharts,
+            encontrarAPIDisponivel: typeof encontrarAPIDisponivel
+        };
+        
+        console.log("📋 Funções disponíveis:", funcoes);
+        
+        // Verifica API
+        console.log("🌐 Testando conectividade com API...");
+        console.log("APIs a testar:", APIs_DISPONIVEIS);
+        
+        // Teste de API
+        setTimeout(() => {
+            console.log("API atual em uso:", apiAtual);
+            
+            fetch(`${apiAtual}/dashboard`)
+                .then(r => {
+                    console.log("✅ API respondendo (status:", r.status, ")");
+                    return r.json();
+                })
+                .then(data => {
+                    console.log("✅ Dados recebidos:", {
+                        patrimonio_total: data.patrimonio_total,
+                        saldo_brl: data.saldo_brl,
+                        posicoes: data.posicoes?.length || 0,
+                        operacoes: data.ultimas_operacoes?.length || 0
+                    });
+                })
+                .catch(e => {
+                    console.error("❌ Erro ao buscar dados:", e.message);
+                });
+        }, 2000);
+    </script>
 </body>
 </html>

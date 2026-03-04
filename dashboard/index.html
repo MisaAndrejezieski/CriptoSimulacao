@@ -146,5 +146,69 @@
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="script.js"></script>
+    
+    <!-- Script de Diagnóstico -->
+    <script>
+        console.log("=== DIAGNÓSTICO DO DASHBOARD ===");
+        console.log("Página carregada em:", new Date().toLocaleTimeString('pt-BR'));
+        
+        // Verifica funções carregadas
+        const funcoes = {
+            atualizarDashboard: typeof atualizarDashboard,
+            atualizarDistribuicaoLista: typeof atualizarDistribuicaoLista,
+            atualizarPosicoes: typeof atualizarPosicoes,
+            atualizarTimeline: typeof atualizarTimeline,
+            atualizarCharts: typeof atualizarCharts,
+            carregarDados: typeof carregarDados,
+            iniciarCharts: typeof iniciarCharts
+        };
+        
+        console.log("📋 Funções disponíveis:", funcoes);
+        
+        // Verifica API
+        console.log("🌐 Testando conectividade com API...");
+        console.log("API_URL:", typeof API_URL !== 'undefined' ? API_URL : 'NÃO DEFINIDA');
+        
+        // Testa requisição para API
+        fetch('http://localhost:5001/api/dashboard')
+            .then(r => {
+                console.log("✅ API respondendo (status:", r.status, ")");
+                return r.json();
+            })
+            .then(data => {
+                console.log("✅ Dados recebidos da API:", data);
+            })
+            .catch(e => {
+                console.error("❌ Erro ao conectar com API:", e.message);
+                console.error("Tentando porta alternativa 5000...");
+                
+                return fetch('http://localhost:5000/api/precos')
+                    .then(r => r.json())
+                    .then(data => console.log("✅ API 5000 funcionando:", data))
+                    .catch(e2 => console.error("❌ Nenhuma API acessível:", e2.message));
+            });
+        
+        // Verifica elementos do DOM
+        setTimeout(() => {
+            const elementos = {
+                'patrimonio-atual': document.getElementById('patrimonio-atual'),
+                'chart-patrimonio': document.getElementById('chart-patrimonio'),
+                'chart-distribuicao': document.getElementById('chart-distribuicao'),
+                'posicoes-body': document.getElementById('posicoes-body'),
+                'timeline': document.getElementById('timeline'),
+                'ultima-atualizacao': document.getElementById('ultima-atualizacao')
+            };
+            
+            console.log("🎯 Elementos DOM encontrados:");
+            Object.entries(elementos).forEach(([nome, elem]) => {
+                console.log(`  ${nome}:`, elem ? '✅ OK' : '❌ NÃO ENCONTRADO');
+            });
+            
+            // Resumo final
+            console.log("\n=== STATUS GERAL ===");
+            const todasFuncoesOK = Object.values(funcoes).every(f => f === 'function');
+            console.log("Todas as funções carregadas?", todasFuncoesOK ? "✅ SIM" : "❌ NÃO");
+        }, 1000);
+    </script>
 </body>
 </html>
