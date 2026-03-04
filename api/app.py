@@ -4,9 +4,11 @@ from datetime import datetime, timedelta
 
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 CORS(app)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 @app.route('/api/dashboard', methods=['GET'])
 def get_dashboard():
@@ -109,13 +111,46 @@ def get_dashboard():
         'distribuicao': distribuicao
     })
 
-@app.route('/api/status', methods=['GET'])
-def get_status():
-    """Verifica se o bot está online"""
-    return jsonify({
-        'status': 'online',
-        'timestamp': datetime.now().isoformat()
-    })
+@socketio.on('connect')
+def handle_connect():
+    print('Cliente conectado via WebSocket')
+    emit('status', {'message': 'Conectado ao servidor', 'timestamp': datetime.now().isoformat()})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Cliente desconectado')
+
+@socketio.on('subscribe_prices')
+def handle_subscribe_prices(data):
+    """Cliente solicita atualização de preços em tempo real"""
+    emit('prices_update', coletor.precos_cache)
+
+@socketio.on('subscribe_portfolio')
+def handle_subscribe_portfolio(data):
+    """Cliente solicita atualização do portfolio"""
+    # Carrega dados do portfolio
+    carteira_path = os.path.join(os.path.dirname(__file__), '..', 'backend', 'carteira_default.json')
+    
+    if os.path.exists(carteira_path):
+        with open(carteira_path, 'r') as f:
+            carteira = json.load(f)
+        
+        # Calcula patrimônio atual
+        patrimonio_atual = carteira['historico_patrimonio'][-1]['valor'] if carteira['historico_patrimonio'] else 1000.0
+        patrimonio_inicial = 1000.0
+        variacao_total = ((patrimonio_atual / patrimonio_inicial) - 1) * 100
+        
+        portfolio_data = {
+            'saldo_brl': carteira['saldo_brl'],
+            'patrimonio_total': patrimonio_atual,
+            'variacao_total': variacao_total,
+            'total_cripto': patrimonio_atual - carteira['saldo_brl'],
+            'posicoes': carteira['moedas'],
+            'ultimas_operacoes': carteira['historico'][-5:] if 'historico' in carteira else [],
+            'historico_patrimonio': carteira['historico_patrimonio'][-20:] if 'historico_patrimonio' in carteira else []
+        }
+        
+        emit('portfolio_update', portfolio_data)
 
 @app.route('/dashboard/index.html')
 def serve_dashboard():
@@ -134,4 +169,5 @@ def serve_frontend_files(filename):
     return send_from_directory(os.path.join(os.path.dirname(__file__), '..', 'frontend'), filename)
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    print("🚀 Iniciando API com WebSocket...")
+    socketio.run(app, debug=True, port=5001, host='0.0.0.0')

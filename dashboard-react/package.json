@@ -1,0 +1,16 @@
+{
+  "name": "cryptobot-pro-dashboard",
+  "version": "1.0.0",
+  "description": "Dashboard profissional para CryptoBot com React e WebSocket",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0"
+  },
+  "keywords": ["cryptobot", "trading", "dashboard", "react", "websocket"],
+  "author": "CryptoBot Team",
+  "license": "MIT"
+}
