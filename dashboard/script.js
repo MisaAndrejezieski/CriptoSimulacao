@@ -199,6 +199,14 @@ function atualizarCharts(data) {
     }
 }
 
+function atualizarDistribuicaoLista(distribuicao) {
+    // Função auxiliar para atualizar lista de distribuição se necessária
+    // Esta função é mantida para compatibilidade
+    if (typeof distribuicao !== 'undefined' && Array.isArray(distribuicao)) {
+        console.log('Distribuição atualizada:', distribuicao);
+    }
+}
+
 function atualizarUltimaAtualizacao() {
     const agora = new Date();
     document.getElementById('ultima-atualizacao').textContent = 
