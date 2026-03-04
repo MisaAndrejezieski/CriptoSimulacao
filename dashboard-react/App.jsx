@@ -4,9 +4,9 @@ const { useState, useEffect } = React;
 function App() {
     const [portfolio, setPortfolio] = useState({
         saldo_brl: 1000,
-        patrimonio_total: 1000,
-        variacao_total: 0,
-        total_cripto: 0,
+        patrimonio_total: 1234.56,
+        variacao_total: 23.45,
+        total_cripto: 666.67,
         posicoes: {},
         ultimas_operacoes: [],
         historico_patrimonio: []
@@ -15,6 +15,7 @@ function App() {
     const [precos, setPrecos] = useState({});
     const [isConnected, setIsConnected] = useState(false);
     const [charts, setCharts] = useState({});
+    const [currentView, setCurrentView] = useState('dashboard');
 
     // Conexão WebSocket
     useEffect(() => {
@@ -163,178 +164,248 @@ function App() {
         return (valor >= 0 ? '+' : '') + valor.toFixed(2) + '%';
     };
 
+    const renderMainContent = () => {
+        switch (currentView) {
+            case 'dashboard':
+                return (
+                    <>
+                        {/* Welcome Section */}
+                        <div className="welcome-section">
+                            <h1>Olá, <span className="gold">Investidor</span></h1>
+                            <p>Acompanhe o desempenho do seu bot em tempo real</p>
+                        </div>
+
+                        {/* Portfolio Cards */}
+                        <div className="portfolio-cards">
+                            <div className="card card-gold">
+                                <div className="card-header">
+                                    <span className="card-title">Saldo Inicial</span>
+                                    <i className="fas fa-wallet"></i>
+                                </div>
+                                <div className="card-value">R$ 1.000,00</div>
+                                <div className="card-footer">
+                                    <span className="badge">Capital inicial</span>
+                                </div>
+                            </div>
+
+                            <div className="card card-gradient">
+                                <div className="card-header">
+                                    <span className="card-title">Patrimônio Atual</span>
+                                    <i className="fas fa-chart-line"></i>
+                                </div>
+                                <div className="card-value" id="patrimonio-atual">{formatarMoeda(portfolio.patrimonio_total)}</div>
+                                <div className="card-footer">
+                                    <span className={`variacao ${portfolio.variacao_total >= 0 ? 'positiva' : 'negativa'}`}>
+                                        <i className="fas fa-arrow-up"></i> {formatarPercentual(portfolio.variacao_total)}
+                                    </span>
+                                    <span className="badge">Últimos 30 dias</span>
+                                </div>
+                            </div>
+
+                            <div className="card">
+                                <div className="card-header">
+                                    <span className="card-title">Saldo Disponível</span>
+                                    <i className="fas fa-coins"></i>
+                                </div>
+                                <div className="card-value" id="saldo-disponivel">{formatarMoeda(portfolio.saldo_brl)}</div>
+                                <div className="card-footer">
+                                    <span className="badge">Em BRL</span>
+                                </div>
+                            </div>
+
+                            <div className="card">
+                                <div className="card-header">
+                                    <span className="card-title">Em Criptomoedas</span>
+                                    <i className="fas fa-bitcoin"></i>
+                                </div>
+                                <div className="card-value" id="total-cripto">{formatarMoeda(portfolio.total_cripto)}</div>
+                                <div className="card-footer">
+                                    <span className="badge">Valor de mercado</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Stats Row */}
+                        <div className="stats-row">
+                            <div className="stat-card">
+                                <i className="fas fa-chart-bar stat-icon gold"></i>
+                                <div className="stat-info">
+                                    <span className="stat-label">Total de Trades</span>
+                                    <span className="stat-number" id="total-trades">{portfolio.ultimas_operacoes.length}</span>
+                                </div>
+                            </div>
+                            <div className="stat-card">
+                                <i className="fas fa-clock stat-icon gold"></i>
+                                <div className="stat-info">
+                                    <span className="stat-label">Tempo Online</span>
+                                    <span className="stat-number">24h</span>
+                                </div>
+                            </div>
+                            <div className="stat-card">
+                                <i className="fas fa-signal stat-icon gold"></i>
+                                <div className="stat-info">
+                                    <span className="stat-label">Status</span>
+                                    <span className="stat-number">{isConnected ? 'Online' : 'Offline'}</span>
+                                </div>
+                            </div>
+                            <div className="stat-card">
+                                <i className="fas fa-robot stat-icon gold"></i>
+                                <div className="stat-info">
+                                    <span className="stat-label">Modo</span>
+                                    <span className="stat-number">Automático</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Charts Section */}
+                        <div className="charts-section">
+                            <div className="chart-container">
+                                <div className="chart-header">
+                                    <h3>Evolução do Patrimônio</h3>
+                                    <div className="chart-periods">
+                                        <button className="period-btn active">1D</button>
+                                        <button className="period-btn">7D</button>
+                                        <button className="period-btn">30D</button>
+                                    </div>
+                                </div>
+                                <canvas id="chart-patrimonio"></canvas>
+                            </div>
+
+                            <div className="chart-container small">
+                                <div className="chart-header">
+                                    <h3>Distribuição</h3>
+                                </div>
+                                <canvas id="chart-distribuicao"></canvas>
+                            </div>
+                        </div>
+                    </>
+                );
+            case 'historico':
+                return (
+                    <div className="welcome-section">
+                        <h1>Histórico de <span className="gold">Trades</span></h1>
+                        <p>Veja todas as operações realizadas pelo bot</p>
+                        <div className="card" style={{ marginTop: '30px' }}>
+                            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                Funcionalidade em desenvolvimento
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 'estrategias':
+                return (
+                    <div className="welcome-section">
+                        <h1>Estratégias de <span className="gold">Trading</span></h1>
+                        <p>Configure e monitore suas estratégias automatizadas</p>
+                        <div className="card" style={{ marginTop: '30px' }}>
+                            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                Funcionalidade em desenvolvimento
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 'analises':
+                return (
+                    <div className="welcome-section">
+                        <h1>Análises <span className="gold">Avançadas</span></h1>
+                        <p>Relatórios detalhados e métricas de performance</p>
+                        <div className="card" style={{ marginTop: '30px' }}>
+                            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                Funcionalidade em desenvolvimento
+                            </div>
+                        </div>
+                    </div>
+                );
+            case 'configuracoes':
+                return (
+                    <div className="welcome-section">
+                        <h1>Configurações do <span className="gold">Sistema</span></h1>
+                        <p>Ajuste os parâmetros do seu bot de trading</p>
+                        <div className="card" style={{ marginTop: '30px' }}>
+                            <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                Funcionalidade em desenvolvimento
+                            </div>
+                        </div>
+                    </div>
+                );
+            default:
+                return null;
+        }
+    };
+
     return (
-        <div className="dashboard">
-            {/* Sidebar */}
-            <aside className="sidebar">
+        <>
+            {/* Background Effects */}
+            <div className="bg-glow"></div>
+            <div className="grid-overlay"></div>
+
+            {/* Header */}
+            <header className="header">
                 <div className="logo">
-                    <i className="fas fa-robot"></i>
-                    <span className="logo-text">CRYPTOBOT PRO</span>
+                    <i className="fas fa-robot gold-icon"></i>
+                    <span className="logo-text">CRYPTO<span className="gold">BOT</span></span>
                 </div>
-
-                <ul className="nav-menu">
-                    <li className="nav-item active">
-                        <i className="fas fa-chart-line"></i>
-                        <span>Dashboard</span>
-                    </li>
-                    <li className="nav-item">
-                        <i className="fas fa-robot"></i>
-                        <span>Estratégias</span>
-                    </li>
-                    <li className="nav-item">
-                        <i className="fas fa-history"></i>
-                        <span>Histórico</span>
-                    </li>
-                    <li className="nav-item">
-                        <i className="fas fa-exchange-alt"></i>
-                        <span>Trading</span>
-                    </li>
-                    <li className="nav-item">
-                        <i className="fas fa-cog"></i>
-                        <span>Configurações</span>
-                    </li>
-                </ul>
-
-                <div style={{ marginTop: 'auto', padding: '2rem', textAlign: 'center' }}>
-                    <div style={{
-                        width: '12px',
-                        height: '12px',
-                        borderRadius: '50%',
-                        background: isConnected ? '#10b981' : '#ef4444',
-                        display: 'inline-block',
-                        marginRight: '0.5rem'
-                    }}></div>
-                    <span style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-                        {isConnected ? 'Online' : 'Offline'}
-                    </span>
-                </div>
-            </aside>
-
-            {/* Main Content */}
-            <main className="main-content">
-                <header className="header">
-                    <h1>Dashboard Profissional</h1>
-                    <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>
-                        Última atualização: {new Date().toLocaleTimeString('pt-BR')}
-                    </div>
-                </header>
-
-                {/* Stats Cards */}
-                <div className="stats-grid">
-                    <div className="stat-card">
-                        <div className="stat-header">
-                            <span className="stat-title">Saldo BRL</span>
-                            <div className="stat-icon gold">
-                                <i className="fas fa-wallet"></i>
-                            </div>
-                        </div>
-                        <div className="stat-value">{formatarMoeda(portfolio.saldo_brl)}</div>
-                    </div>
-
-                    <div className="stat-card">
-                        <div className="stat-header">
-                            <span className="stat-title">Patrimônio Total</span>
-                            <div className="stat-icon gold">
-                                <i className="fas fa-chart-line"></i>
-                            </div>
-                        </div>
-                        <div className="stat-value">{formatarMoeda(portfolio.patrimonio_total)}</div>
-                        <div style={{
-                            color: portfolio.variacao_total >= 0 ? '#10b981' : '#ef4444',
-                            fontSize: '0.875rem',
-                            marginTop: '0.5rem'
-                        }}>
-                            {formatarPercentual(portfolio.variacao_total)}
+                
+                <div className="header-stats">
+                    <div className="stat-item">
+                        <span className="stat-label">Status do Bot</span>
+                        <div className="stat-value status-online">
+                            <span className="dot"></span>
+                            {isConnected ? 'Online' : 'Offline'}
                         </div>
                     </div>
-
-                    <div className="stat-card">
-                        <div className="stat-header">
-                            <span className="stat-title">Em Criptomoedas</span>
-                            <div className="stat-icon gold">
-                                <i className="fas fa-bitcoin"></i>
-                            </div>
-                        </div>
-                        <div className="stat-value">{formatarMoeda(portfolio.total_cripto)}</div>
+                    <div className="stat-item">
+                        <span className="stat-label">Última Atualização</span>
+                        <div className="stat-value" id="ultima-atualizacao">{new Date().toLocaleTimeString('pt-BR')}</div>
                     </div>
-
-                    <div className="stat-card">
-                        <div className="stat-header">
-                            <span className="stat-title">Total de Trades</span>
-                            <div className="stat-icon gold">
-                                <i className="fas fa-chart-bar"></i>
-                            </div>
-                        </div>
-                        <div className="stat-value">{portfolio.ultimas_operacoes.length}</div>
+                    <div className="stat-item">
+                        <span className="stat-label">Versão</span>
+                        <div className="stat-value">v2.0.0</div>
                     </div>
                 </div>
+            </header>
 
-                {/* Charts Section */}
-                <div className="charts-section">
-                    <div className="chart-container">
-                        <div className="chart-header">
-                            <h3>Evolução do Patrimônio</h3>
+            {/* Main Container */}
+            <div className="container">
+                {/* Sidebar */}
+                <aside className="sidebar">
+                    <nav className="nav-menu">
+                        <div className={`nav-item ${currentView === 'dashboard' ? 'active' : ''}`} onClick={() => setCurrentView('dashboard')}>
+                            <i className="fas fa-chart-line"></i>
+                            <span>Visão Geral</span>
                         </div>
-                        <div className="chart-wrapper">
-                            <canvas id="chart-patrimonio"></canvas>
+                        <div className={`nav-item ${currentView === 'estrategias' ? 'active' : ''}`} onClick={() => setCurrentView('estrategias')}>
+                            <i className="fas fa-robot"></i>
+                            <span>Estratégias</span>
+                        </div>
+                        <div className={`nav-item ${currentView === 'historico' ? 'active' : ''}`} onClick={() => setCurrentView('historico')}>
+                            <i className="fas fa-history"></i>
+                            <span>Histórico</span>
+                        </div>
+                        <div className={`nav-item ${currentView === 'analises' ? 'active' : ''}`} onClick={() => setCurrentView('analises')}>
+                            <i className="fas fa-chart-pie"></i>
+                            <span>Análises</span>
+                        </div>
+                        <div className={`nav-item ${currentView === 'configuracoes' ? 'active' : ''}`} onClick={() => setCurrentView('configuracoes')}>
+                            <i className="fas fa-cog"></i>
+                            <span>Configurações</span>
+                        </div>
+                    </nav>
+                    
+                    <div className="sidebar-footer">
+                        <div className="user-info">
+                            <i className="fas fa-user-circle"></i>
+                            <span>Modo Automático</span>
                         </div>
                     </div>
+                </aside>
 
-                    <div className="chart-container">
-                        <div className="chart-header">
-                            <h3>Distribuição de Ativos</h3>
-                        </div>
-                        <div className="chart-wrapper">
-                            <canvas id="chart-distribuicao"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Positions Table */}
-                <div className="positions-section">
-                    <h3>Posições Atuais</h3>
-                    <div className="table-container">
-                        <table className="positions-table">
-                            <thead>
-                                <tr>
-                                    <th>Ativo</th>
-                                    <th>Quantidade</th>
-                                    <th>Preço Atual</th>
-                                    <th>Valor Total</th>
-                                    <th>P&L</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {Object.entries(portfolio.posicoes).map(([simbolo, quantidade]) => {
-                                    const precoAtual = precos[simbolo]?.preco || 0;
-                                    const valorTotal = quantidade * precoAtual;
-                                    const pl = 0; // Calcular P&L real depois
-
-                                    return (
-                                        <tr key={simbolo}>
-                                            <td><strong>{simbolo}</strong></td>
-                                            <td>{quantidade.toFixed(6)}</td>
-                                            <td>${precoAtual.toFixed(2)}</td>
-                                            <td>{formatarMoeda(valorTotal)}</td>
-                                            <td style={{ color: pl >= 0 ? '#10b981' : '#ef4444' }}>
-                                                {formatarMoeda(pl)}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
-                                {Object.keys(portfolio.posicoes).length === 0 && (
-                                    <tr>
-                                        <td colSpan="5" style={{ textAlign: 'center', padding: '2rem', color: '#94a3b8' }}>
-                                            Nenhuma posição aberta no momento
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </main>
-        </div>
+                {/* Main Content */}
+                <main className="main-content">
+                    {renderMainContent()}
+                </main>
+            </div>
+        </>
     );
 }
 
