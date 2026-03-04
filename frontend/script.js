@@ -211,6 +211,26 @@ function adicionarFooterGrafico() {
     }
 }
 
+function atualizarDistribuicaoLista(distribuicao) {
+    const lista = document.getElementById('distribuicao-lista');
+    if (!lista) return;
+    
+    lista.innerHTML = distribuicao.map(item => `
+        <div class="distribution-item">
+            <div class="distribution-info">
+                <span class="distribution-symbol">${item.simbolo}</span>
+                <span class="distribution-value">R$ ${item.valor.toLocaleString('pt-BR')}</span>
+            </div>
+            <div class="distribution-bar-container">
+                <div class="distribution-bar">
+                    <div class="distribution-fill" style="width: ${item.percentual}%"></div>
+                </div>
+                <span class="distribution-percent">${item.percentual}%</span>
+            </div>
+        </div>
+    `).join('');
+}
+
 function atualizarDashboard(data) {
     document.getElementById('patrimonio-atual').textContent = 
         formatarMoeda(data.patrimonio_total);
