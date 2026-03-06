@@ -1,447 +1,535 @@
-// Configuração
-const API_URL_PADRAO = 'http://localhost:5001/api';
-
-// Tenta portas alternativas
-const APIs_DISPONIVEIS = [
-    'http://localhost:5001/api',
-    'http://127.0.0.1:5001/api',
-    'http://localhost:5000/api',
-    'http://127.0.0.1:5000/api'
-];
-
-// Charts
-let patrimonioChart, distribuicaoChart;
-let apiAtual = API_URL_PADRAO;
-
-// Função para encontrar a API disponível
-async function encontrarAPIDisponivel() {
-    for (const url of APIs_DISPONIVEIS) {
-        try {
-            const response = await fetch(`${url}/dashboard`, { method: 'HEAD' });
-            if (response.ok || response.status === 404) {
-                console.log("✅ API encontrada em:", url);
-                apiAtual = url;
-                return url;
-            }
-        } catch (e) {
-            // Continua tentando
-        }
-    }
-    console.error("❌ Nenhuma API disponível encontrada");
-    return null;
-}
-
-// Dados históricos hora a hora
-const gerarDadosHoraHora = () => {
-    const dados = [];
-    const horas = [];
-    
-    // Gerar dados das últimas 24 horas
-    for (let i = 24; i >= 0; i--) {
-        const data = new Date();
-        data.setHours(data.getHours() - i);
-        
-        // Formato: "00:00" ou "01:00" etc
-        horas.push(data.getHours().toString().padStart(2, '0') + ':00');
-        
-        // Simular variação do patrimônio
-        const base = 1000;
-        const variacao = Math.sin(i / 4) * 50 + (i * 2);
-        dados.push(base + variacao);
-    }
-    
-    return { horas, dados };
-};
+// Configurações
+const API_URL = 'http://localhost:5000/api';
+let userId = 'user_' + Math.random().toString(36).substr(2, 9);
+let precoAtual = 0;
+let moedaAtual = 'BTC';
+let grafico = null;
+let historicoPrecos = [];
+let intervalIds = [];
 
 // Inicialização
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log("🚀 Iniciando frontend...");
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Cripto Simulação iniciado');
     
-    // Tenta encontrar API
-    await encontrarAPIDisponivel();
+    // Salva userId
+    const userIdElem = document.getElementById('user-id');
+    if (userIdElem) userIdElem.textContent = userId;
     
-    iniciarCharts();
-    carregarDados();
-    setInterval(carregarDados, 30000); // Atualiza a cada 30 segundos
-    setInterval(atualizarUltimaAtualizacao, 1000);
+    // Carrega dados iniciais
+    carregarPrecos();
+    carregarStatus();
+    carregarHistorico();
+    
+    // Configura atualizações em tempo real
+    startPriceUpdates();
+    startStatusUpdates();
+    
+    // Configura eventos
+    const qty = document.getElementById('quantity');
+    if (qty) qty.addEventListener('input', calcularValorTotal);
+    const tradeCrypto = document.getElementById('trade-crypto');
+    if (tradeCrypto) tradeCrypto.addEventListener('change', mudarMoeda);
+    
+    // Carrega preços na página inicial se existir
+    if (document.getElementById('live-prices')) {
+        carregarTodasCriptos();
+    }
 });
 
-function iniciarCharts() {
-    // Chart de Patrimônio - Estilo LSEG
-    const ctxPatrimonio = document.getElementById('chart-patrimonio').getContext('2d');
+// ========== PREÇOS EM TEMPO REAL ==========
+
+function startPriceUpdates() {
+    // Atualiza a cada 10 segundos
+    const interval = setInterval(() => {
+        carregarPrecos();
+    }, 10000);
+    intervalIds.push(interval);
+}
+
+async function carregarPrecos() {
+    try {
+        const response = await fetch(`${API_URL}/precos?moeda=${moedaAtual}`);
+        const data = await response.json();
+        
+        if (data.dados) {
+            precoAtual = data.dados.preco;
+            
+            // Atualiza interface
+            const priceElement = document.getElementById('current-price');
+            if (priceElement) {
+                priceElement.value = formatarMoeda(precoAtual);
+            }
+            
+            // Atualiza preço no sidebar
+            atualizarPrecoSidebar(moedaAtual, precoAtual, data.dados.variacao_24h);
+            
+            // Adiciona ao histórico para gráfico
+            historicoPrecos.push({
+                preco: precoAtual,
+                timestamp: new Date()
+            });
+            
+            if (historicoPrecos.length > 20) {
+                historicoPrecos.shift();
+            }
+            
+            // Atualiza gráfico
+            atualizarGrafico();
+            
+            // Gera alertas
+            gerarAlertas(data.dados);
+        }
+    } catch (error) {
+        console.error('Erro ao carregar preços:', error);
+    }
+}
+
+async function carregarTodasCriptos() {
+    try {
+        const response = await fetch(`${API_URL}/precos/todas`);
+        const data = await response.json();
+        
+        const pricesGrid = document.getElementById('live-prices');
+        if (pricesGrid) {
+            pricesGrid.innerHTML = '';
+            
+            for (const [moeda, dados] of Object.entries(data.precos)) {
+                const changeClass = dados.variacao_24h >= 0 ? 'positive' : 'negative';
+                const changeSignal = dados.variacao_24h >= 0 ? '▲' : '▼';
+                
+                pricesGrid.innerHTML += `
+                    <div class="price-item">
+                        <h4>${moeda}</h4>
+                        <div class="value">${formatarMoeda(dados.preco)}</div>
+                        <div class="change ${changeClass}">
+                            ${changeSignal} ${Math.abs(dados.variacao_24h).toFixed(2)}%
+                        </div>
+                        <small>${dados.fonte}</small>
+                    </div>
+                `;
+            }
+        }
+        
+        // Atualiza também o sidebar se estiver no dashboard
+        atualizarSidebarCriptos(data.precos);
+    } catch (error) {
+        console.error('Erro ao carregar todas criptos:', error);
+    }
+}
+
+function atualizarSidebarCriptos(precos) {
+    const cryptoList = document.getElementById('crypto-list');
+    if (!cryptoList) return;
     
-    // Criar gradiente dourado
-    const gradient = ctxPatrimonio.createLinearGradient(0, 0, 0, 400);
-    gradient.addColorStop(0, 'rgba(255, 215, 0, 0.2)');
-    gradient.addColorStop(1, 'rgba(255, 215, 0, 0.0)');
+    cryptoList.innerHTML = '';
     
-    const { horas, dados } = gerarDadosHoraHora();
+    for (const [moeda, dados] of Object.entries(precos)) {
+        const changeClass = dados.variacao_24h >= 0 ? 'positive' : 'negative';
+        const changeSignal = dados.variacao_24h >= 0 ? '▲' : '▼';
+        
+        cryptoList.innerHTML += `
+            <div class="crypto-item ${moeda === moedaAtual ? 'active' : ''}" onclick="selecionarMoeda('${moeda}')">
+                <span class="name">${moeda}</span>
+                <span class="price">${formatarMoedaResumido(dados.preco)}</span>
+                <span class="change ${changeClass}">${changeSignal} ${Math.abs(dados.variacao_24h).toFixed(1)}%</span>
+            </div>
+        `;
+    }
+}
+
+function atualizarPrecoSidebar(moeda, preco, variacao) {
+    const cryptoItems = document.querySelectorAll('.crypto-item');
+    cryptoItems.forEach(item => {
+        if (item.querySelector('.name').textContent === moeda) {
+            item.querySelector('.price').textContent = formatarMoedaResumido(preco);
+            const changeSpan = item.querySelector('.change');
+            const changeClass = variacao >= 0 ? 'positive' : 'negative';
+            const changeSignal = variacao >= 0 ? '▲' : '▼';
+            
+            changeSpan.className = `change ${changeClass}`;
+            changeSpan.textContent = `${changeSignal} ${Math.abs(variacao).toFixed(1)}%`;
+        }
+    });
+}
+
+// ========== GRÁFICO ==========
+
+function atualizarGrafico() {
+    const canvas = document.getElementById('price-chart');
+    if (!canvas) return;
     
-    patrimonioChart = new Chart(ctxPatrimonio, {
+    const ctx = canvas.getContext('2d');
+    
+    if (grafico) {
+        grafico.destroy();
+    }
+    
+    const labels = historicoPrecos.map(p => 
+        p.timestamp.toLocaleTimeString()
+    );
+    
+    const dados = historicoPrecos.map(p => p.preco);
+    
+    grafico = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: horas,
+            labels: labels,
             datasets: [{
-                label: 'BTC/BRL',
+                label: `${moedaAtual}/BRL`,
                 data: dados,
-                borderColor: '#FFD700',
-                backgroundColor: gradient,
+                borderColor: '#f7931a',
+                backgroundColor: 'rgba(247, 147, 26, 0.1)',
                 borderWidth: 2,
-                pointRadius: 0,
-                pointHoverRadius: 4,
-                pointHoverBackgroundColor: '#FFD700',
-                pointHoverBorderColor: '#B8860B',
-                tension: 0.2,
-                fill: true
+                fill: true,
+                tension: 0.4
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            layout: {
-                padding: {
-                    top: 20,
-                    bottom: 30
-                }
-            },
             plugins: {
                 legend: {
                     display: false
-                },
-                tooltip: {
-                    mode: 'index',
-                    intersect: false,
-                    backgroundColor: '#1E2329',
-                    titleColor: '#FFD700',
-                    bodyColor: '#FFFFFF',
-                    borderColor: '#B8860B',
-                    borderWidth: 1,
-                    callbacks: {
-                        label: function(context) {
-                            return `R$ ${context.raw.toFixed(2)}`;
-                        }
-                    }
                 }
             },
             scales: {
                 y: {
-                    position: 'right',
-                    grid: {
-                        color: 'rgba(255, 255, 255, 0.1)',
-                        drawBorder: false,
-                        lineWidth: 0.5
-                    },
                     ticks: {
-                        color: '#9CA3AF',
                         callback: function(value) {
-                            return 'R$ ' + value.toFixed(0);
-                        },
-                        stepSize: 200000
-                    },
-                    min: 0,
-                    max: 1000000
-                },
-                x: {
-                    grid: {
-                        display: false
-                    },
-                    ticks: {
-                        color: '#9CA3AF',
-                        maxRotation: 0,
-                        maxTicksLimit: 12
-                    }
-                }
-            },
-            interaction: {
-                intersect: false,
-                mode: 'index'
-            },
-            elements: {
-                line: {
-                    borderJoinStyle: 'round'
-                }
-            }
-        }
-    });
-
-    // Chart de Distribuição - Donut
-    const ctxDistribuicao = document.getElementById('chart-distribuicao').getContext('2d');
-    distribuicaoChart = new Chart(ctxDistribuicao, {
-        type: 'doughnut',
-        data: {
-            labels: ['BTC', 'ETH', 'BNB', 'ADA', 'BRL'],
-            datasets: [{
-                data: [45, 30, 15, 5, 5],
-                backgroundColor: [
-                    '#FFD700',
-                    '#B8860B',
-                    '#DAA520',
-                    '#CD7F32',
-                    '#9CA3AF'
-                ],
-                borderWidth: 0,
-                hoverOffset: 5
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    display: false
-                },
-                tooltip: {
-                    backgroundColor: '#1E2329',
-                    titleColor: '#FFD700',
-                    bodyColor: '#FFFFFF',
-                    borderColor: '#B8860B',
-                    borderWidth: 1,
-                    callbacks: {
-                        label: function(context) {
-                            return `${context.raw}%`;
+                            return 'R$ ' + value.toLocaleString();
                         }
                     }
                 }
-            },
-            cutout: '65%',
-            layout: {
-                padding: 10
             }
         }
     });
-
-    // Atualizar lista de distribuição
-    atualizarDistribuicaoLista([
-        { simbolo: 'BTC', percentual: 45, valor: 450000 },
-        { simbolo: 'ETH', percentual: 30, valor: 300000 },
-        { simbolo: 'BNB', percentual: 15, valor: 150000 },
-        { simbolo: 'ADA', percentual: 5, valor: 50000 },
-        { simbolo: 'BRL', percentual: 5, valor: 50000 }
-    ]);
-
-    // Adicionar footer do gráfico
-    adicionarFooterGrafico();
 }
 
-function adicionarFooterGrafico() {
-    const chartContainer = document.querySelector('.chart-container');
-    if (chartContainer && !document.querySelector('.chart-footer')) {
-        const footer = document.createElement('div');
-        footer.className = 'chart-footer';
-        footer.innerHTML = `
-            <div class="chart-footer-left">
-                <span class="chart-footer-label">BTC - Bitcoin</span>
-                <span class="chart-footer-label">BRL R$ - Real Brasileiro</span>
-                <span class="chart-footer-value">1,00</span>
-                <span class="chart-footer-value">360.652,00</span>
-            </div>
-            <div class="chart-footer-right">
-                <span class="chart-footer-data">Dados do LSEG · Aviso de Isenção de Responsabilidade</span>
-            </div>
-        `;
-        chartContainer.appendChild(footer);
+function mudarGrafico() {
+    const select = document.getElementById('chart-crypto');
+    if (select) {
+        moedaAtual = select.value;
+        const tradeSelect = document.getElementById('trade-crypto');
+        if (tradeSelect) tradeSelect.value = moedaAtual;
+        historicoPrecos = [];
+        carregarPrecos();
     }
 }
 
-function atualizarDistribuicaoLista(distribuicao) {
-    const lista = document.getElementById('distribuicao-lista');
-    if (!lista) return;
-    
-    lista.innerHTML = distribuicao.map(item => `
-        <div class="distribution-item">
-            <div class="distribution-info">
-                <span class="distribution-symbol">${item.simbolo}</span>
-                <span class="distribution-value">R$ ${item.valor.toLocaleString('pt-BR')}</span>
-            </div>
-            <div class="distribution-bar-container">
-                <div class="distribution-bar">
-                    <div class="distribution-fill" style="width: ${item.percentual}%"></div>
-                </div>
-                <span class="distribution-percent">${item.percentual}%</span>
-            </div>
-        </div>
-    `).join('');
+// ========== SIMULAÇÃO ==========
+
+function startStatusUpdates() {
+    const interval = setInterval(() => {
+        carregarStatus();
+    }, 5000);
+    intervalIds.push(interval);
 }
 
-function atualizarDashboard(data) {
-    document.getElementById('patrimonio-atual').textContent = 
-        formatarMoeda(data.patrimonio_total);
-    
-    const variacao = data.variacao_total || 0;
-    const variacaoEl = document.getElementById('variacao-total');
-    variacaoEl.innerHTML = variacao >= 0 
-        ? `<i class="fas fa-arrow-up"></i> +${variacao.toFixed(2)}%`
-        : `<i class="fas fa-arrow-down"></i> ${variacao.toFixed(2)}%`;
-    variacaoEl.className = `variacao ${variacao >= 0 ? 'positiva' : 'negativa'}`;
-    
-    document.getElementById('saldo-disponivel').textContent = 
-        formatarMoeda(data.saldo_brl);
-    document.getElementById('total-cripto').textContent = 
-        formatarMoeda(data.total_cripto);
-    document.getElementById('total-trades').textContent = 
-        data.total_trades || 0;
-    document.getElementById('win-rate').textContent = 
-        (data.win_rate || 0) + '%';
-    document.getElementById('trades-hoje').textContent = '0'; // Placeholder
-    document.getElementById('melhor-trade').textContent = '+0%'; // Placeholder
-}
-
-function atualizarCharts(data) {
-    // Atualiza chart de patrimônio
-    if (data.historico_patrimonio && patrimonioChart) {
-        // Use real data if available, otherwise keep mock data
-        if (data.historico_patrimonio.length > 0) {
-            patrimonioChart.data.labels = data.historico_patrimonio.map(h => 
-                new Date(h.timestamp).toLocaleTimeString()
-            );
-            patrimonioChart.data.datasets[0].data = 
-                data.historico_patrimonio.map(h => h.valor);
-            patrimonioChart.update();
-        }
-    }
-    
-    // Atualiza chart de distribuição
-    if (data.distribuicao && distribuicaoChart) {
-        distribuicaoChart.data.labels = data.distribuicao.map(d => d.simbolo);
-        distribuicaoChart.data.datasets[0].data = 
-            data.distribuicao.map(d => d.percentual);
-        distribuicaoChart.update();
-        
-        // Atualizar lista de distribuição
-        atualizarDistribuicaoLista(data.distribuicao.map(d => ({
-            simbolo: d.simbolo,
-            percentual: d.percentual,
-            valor: (d.percentual / 100) * data.patrimonio_total
-        })));
-    }
-}
-
-async function carregarDados() {
+async function carregarStatus() {
     try {
-        const response = await fetch(`${apiAtual}/dashboard`);
+        const response = await fetch(`${API_URL}/simulacao/status?user_id=${userId}`);
+        const data = await response.json();
         
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const capitalEl = document.getElementById('capital');
+        if (capitalEl) capitalEl.textContent = formatarMoeda(data.capital);
+        const totalTradesEl = document.getElementById('total-trades');
+        if (totalTradesEl) totalTradesEl.textContent = data.total_trades;
+        
+        if (data.total_trades > 0) {
+            const winRate = (data.trades_lucro / data.total_trades * 100).toFixed(1);
+            document.getElementById('win-rate').textContent = winRate + '%';
         }
+        
+        // Atualiza informação de posição
+        const emPosicao = document.getElementById('em-posicao');
+        const btnComprar = document.getElementById('btn-comprar');
+        const btnVender = document.getElementById('btn-vender');
+        const positionInfo = document.getElementById('position-info');
+        
+        if (data.position) {
+            if (emPosicao) emPosicao.textContent = 'Sim';
+            if (btnComprar) btnComprar.disabled = true;
+            if (btnVender) btnVender.disabled = false;
+            
+            // Calcula lucro atual
+            const lucro = (precoAtual - data.position.preco) / data.position.preco * 100;
+            const profitClass = lucro >= 0 ? 'profit' : 'loss';
+            
+            positionInfo.innerHTML = `
+                <h4>Posição Atual</h4>
+                <div class="info-row">
+                    <span class="label">Moeda:</span>
+                    <span class="value">${data.position.moeda}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Compra:</span>
+                    <span class="value">${formatarMoeda(data.position.preco)}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Quantidade:</span>
+                    <span class="value">${data.position.quantidade.toFixed(6)}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Valor:</span>
+                    <span class="value">${formatarMoeda(data.position.valor)}</span>
+                </div>
+                <div class="info-row">
+                    <span class="label">Lucro Atual:</span>
+                    <span class="value ${profitClass}">${lucro.toFixed(2)}%</span>
+                </div>
+            `;
+        } else {
+            if (emPosicao) emPosicao.textContent = 'Não';
+            if (btnComprar) btnComprar.disabled = false;
+            if (btnVender) btnVender.disabled = true;
+            positionInfo.innerHTML = '<p>Nenhuma posição aberta</p>';
+        }
+    } catch (error) {
+        console.error('Erro ao carregar status:', error);
+    }
+}
+
+async function carregarHistorico() {
+    try {
+        const response = await fetch(`${API_URL}/simulacao/historico?user_id=${userId}`);
+        const data = await response.json();
+        
+        const tbody = document.getElementById('trades-list');
+        if (!tbody) return;
+        
+        if (data.trades.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6">Nenhum trade realizado</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = '';
+        data.trades.slice().reverse().forEach(trade => {
+            const lucroClass = trade.lucro_percent >= 0 ? 'profit-positive' : 'profit-negative';
+            
+            tbody.innerHTML += `
+                <tr>
+                    <td>${new Date(trade.timestamp).toLocaleString()}</td>
+                    <td>${trade.compra.moeda}</td>
+                    <td>${formatarMoeda(trade.compra.preco)}</td>
+                    <td>${formatarMoeda(trade.venda_preco)}</td>
+                    <td class="${lucroClass}">${trade.lucro_percent.toFixed(2)}%</td>
+                    <td class="${lucroClass}">${formatarMoeda(trade.lucro_abs)}</td>
+                </tr>
+            `;
+        });
+    } catch (error) {
+        console.error('Erro ao carregar histórico:', error);
+    }
+}
+
+async function comprar() {
+    const moeda = document.getElementById('trade-crypto').value;
+    const quantidade = parseFloat(document.getElementById('quantity').value);
+    
+    if (!quantidade || quantidade <= 0) {
+        alert('Por favor, insira uma quantidade válida');
+        return;
+    }
+    
+    const valorTotal = quantidade * precoAtual;
+    const capitalTexto = document.getElementById('capital').textContent;
+    const capital = parseFloat(capitalTexto.replace('R$ ', '').replace(/\./g, '').replace(',', '.'));
+    
+    if (valorTotal > capital) {
+        alert('Saldo insuficiente!');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/simulacao/comprar`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                moeda: moeda,
+                preco: precoAtual,
+                quantidade: quantidade
+            })
+        });
         
         const data = await response.json();
         
-        atualizarDashboard(data);
-        atualizarPosicoes(data.posicoes);
-        atualizarTimeline(data.ultimas_operacoes);
-        atualizarCharts(data);
-        atualizarUltimaAtualizacao();
-        
-    } catch (error) {
-        console.error('❌ Erro ao carregar dados:', error.message);
-        console.error('API tentada:', apiAtual);
-        
-        // Se a primeira tentativa falhar, tenta encontrar API novamente
-        if (apiAtual === API_URL_PADRAO) {
-            console.log("🔄 Procurando API alternativa...");
-            await encontrarAPIDisponivel();
+        if (data.sucesso) {
+            alert('✅ Compra simulada realizada com sucesso!');
+            document.getElementById('quantity').value = '';
+            calcularValorTotal();
+            carregarStatus();
+            carregarHistorico();
+        } else if (data.erro) {
+            alert('❌ ' + data.erro);
         }
+    } catch (error) {
+        console.error('Erro ao comprar:', error);
+        alert('Erro ao realizar compra');
     }
 }
 
-function atualizarPosicoes(posicoes) {
-    const tbody = document.getElementById('posicoes-body');
-    if (!tbody) return;
-    
-    if (!posicoes || posicoes.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="8" style="text-align: center; padding: 40px; color: #64748b;">
-                    Nenhuma posição aberta no momento
-                </td>
-            </tr>
-        `;
+async function vender() {
+    if (!confirm('Tem certeza que deseja vender sua posição?')) {
         return;
     }
     
-    tbody.innerHTML = posicoes.map(pos => {
-        const valor_total = pos.quantidade * pos.preco_atual;
-        const lucro_prejuizo = (pos.preco_atual - pos.preco_medio) * pos.quantidade;
-        const lucro_percentual = ((pos.preco_atual / pos.preco_medio) - 1) * 100;
-        const lucroClass = lucro_prejuizo >= 0 ? 'lucro' : 'prejuizo';
-        
-        return `
-            <tr>
-                <td><strong>${pos.simbolo}</strong></td>
-                <td>${pos.quantidade.toFixed(6)}</td>
-                <td>R$ ${formatarNumero(pos.preco_medio)}</td>
-                <td>R$ ${formatarNumero(pos.preco_atual)}</td>
-                <td>${formatarMoeda(valor_total)}</td>
-                <td class="${lucroClass}">${formatarMoeda(lucro_prejuizo)}</td>
-                <td class="${lucroClass}">${lucro_percentual >= 0 ? '+' : ''}${lucro_percentual.toFixed(2)}%</td>
-                <td><i class="fas fa-chart-line" style="color: #FFD700;"></i></td>
-            </tr>
-        `;
-    }).join('');
-}
-
-function atualizarTimeline(operacoes) {
-    const timeline = document.getElementById('timeline-container');
-    if (!timeline) return;
-    
-    if (!operacoes || operacoes.length === 0) {
-        timeline.innerHTML = `
-            <div style="text-align: center; padding: 40px; color: #64748b;">
-                Nenhuma operação realizada ainda
-            </div>
-        `;
-        return;
-    }
-    
-    timeline.innerHTML = operacoes.map(op => {
-        const horario = new Date(op.timestamp).toLocaleTimeString('pt-BR', {
-            hour: '2-digit',
-            minute: '2-digit'
+    try {
+        const response = await fetch(`${API_URL}/simulacao/vender`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: userId,
+                preco: precoAtual
+            })
         });
         
-        return `
-            <div class="timeline-item ${op.tipo.toLowerCase()}">
-                <div class="timeline-icon ${op.tipo.toLowerCase()}">
-                    <i class="fas fa-${op.tipo === 'COMPRA' ? 'arrow-down' : 'arrow-up'}"></i>
-                </div>
-                <div class="timeline-content">
-                    <div class="timeline-header">
-                        <h4>${op.tipo} ${op.simbolo}</h4>
-                        <span class="timeline-time">${horario}</span>
-                    </div>
-                    <p class="timeline-motivo">Decisão automática do bot</p>
-                    <p class="timeline-detalhes">
-                        ${op.quantidade.toFixed(6)} unidades • R$ ${formatarNumero(op.preco)}
-                    </p>
-                </div>
-                <div class="timeline-price">
-                    R$ ${(op.quantidade * op.preco).toFixed(2)}
-                </div>
-            </div>
-        `;
-    }).join('');
-}
-
-function atualizarUltimaAtualizacao() {
-    const agora = new Date();
-    const elemento = document.getElementById('ultima-atualizacao');
-    if (elemento) {
-        elemento.textContent = agora.toLocaleTimeString('pt-BR') + ' UTC';
+        const data = await response.json();
+        
+        if (data.sucesso) {
+            const lucro = data.trade.lucro_percent;
+            const mensagem = lucro >= 0 
+                ? `✅ Venda realizada com lucro de ${lucro.toFixed(2)}%!`
+                : `⚠️ Venda realizada com prejuízo de ${Math.abs(lucro).toFixed(2)}%`;
+            
+            alert(mensagem);
+            carregarStatus();
+            carregarHistorico();
+        } else if (data.erro) {
+            alert('❌ ' + data.erro);
+        }
+    } catch (error) {
+        console.error('Erro ao vender:', error);
+        alert('Erro ao realizar venda');
     }
 }
 
-function formatarMoeda(valor) {
-    return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: 'BRL',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    }).format(valor);
+async function resetSimulacao() {
+    if (!confirm('Isso irá resetar toda sua simulação. Continuar?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_URL}/simulacao/reset`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                user_id: userId
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.sucesso) {
+            alert('✅ Simulação resetada!');
+            carregarStatus();
+            carregarHistorico();
+        }
+    } catch (error) {
+        console.error('Erro ao resetar:', error);
+    }
 }
 
-function formatarNumero(valor) {
-    return new Intl.NumberFormat('pt-BR', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    }).format(valor);
+// ========== ALERTAS ==========
+
+function gerarAlertas(dados) {
+    const alertasList = document.getElementById('alertas-list');
+    if (!alertasList) return;
+    
+    const variacao = dados.variacao_24h || 0;
+    
+    let alertas = [];
+    
+    // Alerta de queda
+    if (variacao <= -2) {
+        alertas.push({
+            tipo: 'compra',
+            mensagem: `⚠️ Queda de ${Math.abs(variacao).toFixed(1)}%! Momento de COMPRA?`
+        });
+    }
+    
+    // Alerta de alta
+    if (variacao >= 4) {
+        alertas.push({
+            tipo: 'venda',
+            mensagem: `📈 Alta de ${variacao.toFixed(1)}%! Momento de VENDA?`
+        });
+    }
+    
+    // Alerta de volatilidade
+    if (Math.abs(variacao) > 5) {
+        alertas.push({
+            tipo: 'info',
+            mensagem: `⚡ Mercado volátil! Cuidado com os trades.`
+        });
+    }
+    
+    // Mostra alertas
+    if (alertas.length > 0) {
+        alertasList.innerHTML = alertas.map(alerta => `
+            <div class="alerta-item alerta-${alerta.tipo}">
+                ${alerta.mensagem}
+            </div>
+        `).join('');
+    } else {
+        alertasList.innerHTML = '<div class="alerta-item alerta-info">📊 Mercado estável</div>';
+    }
 }
+
+// ========== UTILITÁRIOS ==========
+
+function formatarMoeda(valor) {
+    return 'R$ ' + valor.toFixed(2).replace('.', ',').replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+function formatarMoedaResumido(valor) {
+    if (valor >= 1000) {
+        return 'R$ ' + (valor / 1000).toFixed(1) + 'k';
+    }
+    return 'R$ ' + valor.toFixed(0);
+}
+
+function calcularValorTotal() {
+    const quantidade = parseFloat(document.getElementById('quantity').value) || 0;
+    const total = quantidade * precoAtual;
+    const totalEl = document.getElementById('total-value');
+    if (totalEl) totalEl.value = formatarMoeda(total);
+}
+
+function mudarMoeda() {
+    moedaAtual = document.getElementById('trade-crypto').value;
+    const chartSelect = document.getElementById('chart-crypto');
+    if (chartSelect) chartSelect.value = moedaAtual;
+    historicoPrecos = [];
+    carregarPrecos();
+}
+
+function selecionarMoeda(moeda) {
+    moedaAtual = moeda;
+    const tradeSelect = document.getElementById('trade-crypto');
+    if (tradeSelect) tradeSelect.value = moeda;
+    const chartSelect = document.getElementById('chart-crypto');
+    if (chartSelect) chartSelect.value = moeda;
+    historicoPrecos = [];
+    carregarPrecos();
+    
+    // Atualiza classe ativa
+    document.querySelectorAll('.crypto-item').forEach(item => {
+        if (item.querySelector('.name').textContent === moeda) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+}
+
+// Limpa intervals ao sair da página
+window.addEventListener('beforeunload', function() {
+    intervalIds.forEach(id => clearInterval(id));
+});

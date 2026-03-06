@@ -3,319 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CryptoBot Gold | Trading Automatizado</title>
-    
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
-    <!-- Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    
-    <!-- Styles -->
+    <title>Cripto Simulação - Aprenda a investir sem riscos</title>
     <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Background Effects -->
-    <div class="bg-glow"></div>
-    <div class="grid-overlay"></div>
-
     <!-- Header -->
     <header class="header">
-        <div class="logo">
-            <i class="fas fa-robot gold-icon"></i>
-            <span class="logo-text">CRYPTO<span class="gold">BOT</span></span>
-        </div>
-        
-        <div class="header-stats">
-            <div class="stat-item">
-                <span class="stat-label">Status do Bot</span>
-                <div class="stat-value status-online">
-                    <span class="dot"></span>
-                    Online
-                </div>
+        <nav class="nav-container">
+            <div class="logo">
+                <span class="logo-icon">📊</span>
+                <h1>Cripto Simulação</h1>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">Última Atualização</span>
-                <div class="stat-value" id="ultima-atualizacao">--:-- UTC</div>
+            <div class="nav-links">
+                <a href="index.html" class="active">Início</a>
+                <a href="dashboard.html">Simulador</a>
+                <a href="#sobre">Sobre</a>
+                <a href="#como-funciona">Como Funciona</a>
             </div>
-            <div class="stat-item">
-                <span class="stat-label">Versão</span>
-                <div class="stat-value">v2.0.0</div>
-            </div>
-        </div>
+            <button class="btn-primary" onclick="window.location.href='dashboard.html'">
+                Começar Agora
+            </button>
+        </nav>
     </header>
 
-    <!-- Main Container -->
-    <div class="container">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-            <nav class="nav-menu">
-                <a href="#" class="nav-item active">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Visão Geral</span>
-                </a>
-                <a href="#" class="nav-item">
-                    <i class="fas fa-robot"></i>
-                    <span>Estratégias</span>
-                </a>
-                <a href="#" class="nav-item">
-                    <i class="fas fa-history"></i>
-                    <span>Histórico</span>
-                </a>
-                <a href="#" class="nav-item">
-                    <i class="fas fa-chart-pie"></i>
-                    <span>Análises</span>
-                </a>
-                <a href="#" class="nav-item">
-                    <i class="fas fa-cog"></i>
-                    <span>Configurações</span>
-                </a>
-            </nav>
-            
-            <div class="sidebar-footer">
-                <div class="user-info">
-                    <i class="fas fa-user-circle"></i>
-                    <span>Modo Automático</span>
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-content">
+            <h2>Aprenda a investir em <span class="gradient-text">Criptomoedas</span> sem arriscar seu dinheiro</h2>
+            <p>Simule compra e venda de Bitcoin, Ethereum e outras criptos com preços REAIS do mercado. Perfeito para iniciantes!</p>
+            <div class="hero-buttons">
+                <button class="btn-large" onclick="window.location.href='dashboard.html'">
+                    🚀 Começar Simulação
+                </button>
+                <button class="btn-large btn-outline" onclick="window.location.href='#como-funciona'">
+                    📖 Como Funciona
+                </button>
+            </div>
+            <div class="stats">
+                <div class="stat-item">
+                    <span class="stat-number">R$ 10.000</span>
+                    <span class="stat-label">Capital Inicial</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">5+</span>
+                    <span class="stat-label">Criptomoedas</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-number">Tempo Real</span>
+                    <span class="stat-label">Preços Reais</span>
                 </div>
             </div>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Welcome Section -->
-            <div class="welcome-section">
-                <h1>Olá, <span class="gold">Investidor</span></h1>
-                <p>Acompanhe o desempenho do seu bot em tempo real</p>
+        </div>
+        <div class="hero-image">
+            <div class="price-card">
+                <div class="price-header">
+                    <span class="crypto-icon">₿</span>
+                    <span class="crypto-name">Bitcoin</span>
+                    <span class="crypto-change positive">▲ +2.4%</span>
+                </div>
+                <div class="price-value" id="hero-btc-price">R$ 342.308</div>
+                <div class="price-update">Atualizado em tempo real</div>
             </div>
+        </div>
+    </section>
 
-            <!-- Portfolio Cards -->
-            <div class="portfolio-cards">
-                <div class="card card-gold">
-                    <div class="card-header">
-                        <span class="card-title">Saldo Inicial</span>
-                        <i class="fas fa-wallet"></i>
-                    </div>
-                    <div class="card-value">R$ 1.000,00</div>
-                    <div class="card-footer">
-                        <span class="badge">Capital inicial</span>
-                    </div>
-                </div>
-
-                <div class="card card-gradient">
-                    <div class="card-header">
-                        <span class="card-title">Patrimônio Atual</span>
-                        <i class="fas fa-chart-line"></i>
-                    </div>
-                    <div class="card-value" id="patrimonio-atual">R$ 1.234,56</div>
-                    <div class="card-footer">
-                        <span class="variacao positiva" id="variacao-total">
-                            <i class="fas fa-arrow-up"></i> +23.45%
-                        </span>
-                        <span class="badge">Últimos 30 dias</span>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">Saldo Disponível</span>
-                        <i class="fas fa-coins"></i>
-                    </div>
-                    <div class="card-value" id="saldo-disponivel">R$ 567,89</div>
-                    <div class="card-footer">
-                        <span class="badge">Em BRL</span>
-                    </div>
-                </div>
-
-                <div class="card">
-                    <div class="card-header">
-                        <span class="card-title">Em Criptomoedas</span>
-                        <i class="fas fa-bitcoin"></i>
-                    </div>
-                    <div class="card-value" id="total-cripto">R$ 666,67</div>
-                    <div class="card-footer">
-                        <span class="badge">Valor de mercado</span>
-                    </div>
-                </div>
+    <!-- Features -->
+    <section class="features" id="como-funciona">
+        <h2>Como funciona o <span class="gradient-text">Cripto Simulação</span></h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">💰</div>
+                <h3>Capital Virtual</h3>
+                <p>Comece com R$ 10.000,00 fictícios para fazer suas primeiras operações sem medo de errar.</p>
             </div>
-
-            <!-- Stats Row -->
-            <div class="stats-row">
-                <div class="stat-card">
-                    <i class="fas fa-chart-bar stat-icon gold"></i>
-                    <div class="stat-info">
-                        <span class="stat-label">Total de Trades</span>
-                        <span class="stat-number" id="total-trades">47</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-percent stat-icon gold"></i>
-                    <div class="stat-info">
-                        <span class="stat-label">Win Rate</span>
-                        <span class="stat-number" id="win-rate">68%</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-calendar stat-icon gold"></i>
-                    <div class="stat-info">
-                        <span class="stat-label">Trades Hoje</span>
-                        <span class="stat-number" id="trades-hoje">12</span>
-                    </div>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-trophy stat-icon gold"></i>
-                    <div class="stat-info">
-                        <span class="stat-label">Melhor Trade</span>
-                        <span class="stat-number" id="melhor-trade">+8.5%</span>
-                    </div>
-                </div>
+            <div class="feature-card">
+                <div class="feature-icon">📈</div>
+                <h3>Preços Reais</h3>
+                <p>Os valores são atualizados em tempo real das principais corretoras como Foxbit e Binance.</p>
             </div>
-
-            <!-- Charts Section -->
-            <div class="charts-section">
-                <div class="chart-container">
-                    <div class="chart-header">
-                        <h3>BTC / BRL</h3>
-                        <div class="chart-periods">
-                            <button class="period-btn">1D</button>
-                            <button class="period-btn">5D</button>
-                            <button class="period-btn">1M</button>
-                            <button class="period-btn active">1A</button>
-                            <button class="period-btn">5A</button>
-                            <button class="period-btn">Máx.</button>
-                        </div>
-                    </div>
-                    <div class="chart-wrapper">
-                        <canvas id="chart-patrimonio"></canvas>
-                    </div>
-                    <div class="chart-footer">
-                        <div class="chart-footer-left">
-                            <span class="chart-footer-label">BTC - Bitcoin</span>
-                            <span class="chart-footer-label">BRL R$ - Real Brasileiro</span>
-                            <span class="chart-footer-value">1,00</span>
-                            <span class="chart-footer-value" id="btc-price">360.652,00</span>
-                        </div>
-                        <div class="chart-footer-right">
-                            <span class="chart-footer-data">Dados do LSEG · Aviso de Isenção de Responsabilidade</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="chart-container small">
-                    <div class="chart-header">
-                        <h3>Distribuição de Ativos</h3>
-                    </div>
-                    <div class="chart-wrapper">
-                        <canvas id="chart-distribuicao"></canvas>
-                    </div>
-                    <div class="distribution-list" id="distribuicao-lista">
-                        <!-- Distribuição será inserida via JavaScript -->
-                    </div>
-                </div>
+            <div class="feature-card">
+                <div class="feature-icon">🎯</div>
+                <h3>Estratégias</h3>
+                <p>Teste diferentes estratégias de compra e venda e veja qual funciona melhor.</p>
             </div>
-
-            <!-- Positions Table -->
-            <div class="section-header">
-                <div>
-                    <h2>Posições Atuais</h2>
-                    <span class="section-subtitle">Ativos em carteira</span>
-                </div>
-                <div class="badge">Última atualização em tempo real</div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>Relatórios</h3>
+                <p>Acompanhe seu desempenho com gráficos e estatísticas detalhadas.</p>
             </div>
+        </div>
+    </section>
 
-            <div class="table-container">
-                <table class="positions-table">
-                    <thead>
-                        <tr>
-                            <th>Ativo</th>
-                            <th>Quantidade</th>
-                            <th>Preço Médio</th>
-                            <th>Preço Atual</th>
-                            <th>Valor Total</th>
-                            <th>Lucro/Prejuízo</th>
-                            <th>%</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody id="posicoes-body">
-                        <!-- Posições serão inseridas via JavaScript -->
-                    </tbody>
-                </table>
-            </div>
+    <!-- Live Prices -->
+    <section class="live-prices">
+        <h2>Preços em <span class="gradient-text">Tempo Real</span></h2>
+        <div class="prices-grid" id="live-prices">
+            <!-- Preços serão carregados via JavaScript -->
+        </div>
+    </section>
 
-            <!-- Timeline Section -->
-            <div class="section-header">
-                <div>
-                    <h2>Decisões do Bot</h2>
-                    <span class="section-subtitle">Últimas operações em tempo real</span>
-                </div>
-                <div class="badge">
-                    <i class="fas fa-circle" style="color: var(--success); font-size: 8px;"></i>
-                    Bot ativo
-                </div>
-            </div>
+    <!-- CTA -->
+    <section class="cta">
+        <h2>Pronto para começar?</h2>
+        <p>Mais de 10.000 usuários já aprenderam a investir com o Cripto Simulação</p>
+        <button class="btn-large" onclick="window.location.href='dashboard.html'">
+            Iniciar Simulação Grátis →
+        </button>
+    </section>
 
-            <div class="timeline" id="timeline-container">
-                <!-- Timeline será inserida via JavaScript -->
-            </div>
+    <!-- Footer -->
+    <footer class="footer">
+        <p>© 2026 Cripto Simulação - Aprenda a investir em criptomoedas sem riscos</p>
+        <p class="disclaimer">⚠️ Este é um simulador educacional. Nenhum dinheiro real é investido.</p>
+    </footer>
 
-            <!-- Footer Note -->
-            <div style="margin-top: 20px; text-align: center; color: var(--text-tertiary); font-size: 11px; padding: 20px;">
-                <i class="fas fa-robot" style="color: var(--gold-primary); margin-right: 5px;"></i>
-                CryptoBot Gold · Trading Automatizado · Todos os valores são fictícios para simulação
-            </div>
-        </main>
-    </div>
-
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="script.js"></script>
-    
-    <!-- Script de Diagnóstico -->
-    <script>
-        console.log("=== DIAGNÓSTICO DO FRONTEND ===");
-        console.log("Página carregada em:", new Date().toLocaleTimeString('pt-BR'));
-        
-        // Verifica funções carregadas
-        const funcoes = {
-            atualizarDashboard: typeof atualizarDashboard,
-            atualizarDistribuicaoLista: typeof atualizarDistribuicaoLista,
-            atualizarPosicoes: typeof atualizarPosicoes,
-            atualizarTimeline: typeof atualizarTimeline,
-            atualizarCharts: typeof atualizarCharts,
-            carregarDados: typeof carregarDados,
-            iniciarCharts: typeof iniciarCharts,
-            encontrarAPIDisponivel: typeof encontrarAPIDisponivel
-        };
-        
-        console.log("📋 Funções disponíveis:", funcoes);
-        
-        // Verifica API
-        console.log("🌐 Testando conectividade com API...");
-        console.log("APIs a testar:", APIs_DISPONIVEIS);
-        
-        // Teste de API
-        setTimeout(() => {
-            console.log("API atual em uso:", apiAtual);
-            
-            fetch(`${apiAtual}/dashboard`)
-                .then(r => {
-                    console.log("✅ API respondendo (status:", r.status, ")");
-                    return r.json();
-                })
-                .then(data => {
-                    console.log("✅ Dados recebidos:", {
-                        patrimonio_total: data.patrimonio_total,
-                        saldo_brl: data.saldo_brl,
-                        posicoes: data.posicoes?.length || 0,
-                        operacoes: data.ultimas_operacoes?.length || 0
-                    });
-                })
-                .catch(e => {
-                    console.error("❌ Erro ao buscar dados:", e.message);
-                });
-        }, 2000);
-    </script>
 </body>
 </html>

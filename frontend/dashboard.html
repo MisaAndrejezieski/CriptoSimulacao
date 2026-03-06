@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cripto Simulação - Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo">
+                <span class="logo-icon">📊</span>
+                <h1>Cripto Simulação</h1>
+            </div>
+            <div class="nav-links">
+                <a href="index.html">Início</a>
+                <a href="dashboard.html" class="active">Simulador</a>
+                <a href="#sobre">Sobre</a>
+            </div>
+            <div class="user-info" id="user-info">
+                <span>ID: <span id="user-id">visitante</span></span>
+                <button class="btn-small" onclick="resetSimulacao()">↺ Reset</button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="dashboard">
+        <!-- Sidebar - Criptomoedas -->
+        <aside class="sidebar">
+            <h3>Criptomoedas</h3>
+            <div class="crypto-list" id="crypto-list">
+                <!-- Lista será carregada via JS -->
+            </div>
+            
+            <div class="quick-tips">
+                <h4>💡 Dicas Rápidas</h4>
+                <ul>
+                    <li>Comece com Bitcoin (mais estável)</li>
+                    <li>Nunca invista mais que 50% do capital</li>
+                    <li>Defina metas de lucro (ex: +5%)</li>
+                    <li>Use stop loss para proteger</li>
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Status Card -->
+            <div class="status-card">
+                <div class="status-item">
+                    <span class="status-label">Capital Disponível</span>
+                    <span class="status-value" id="capital">R$ 10.000,00</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Em Posição</span>
+                    <span class="status-value" id="em-posicao">Não</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Trades Realizados</span>
+                    <span class="status-value" id="total-trades">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Win Rate</span>
+                    <span class="status-value" id="win-rate">0%</span>
+                </div>
+            </div>
+
+            <!-- Gráfico e Trading -->
+            <div class="trading-panel">
+                <!-- Gráfico Simples -->
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>📈 Gráfico de Preços</h3>
+                        <select id="chart-crypto" onchange="mudarGrafico()">
+                            <option value="BTC">Bitcoin (BTC)</option>
+                            <option value="ETH">Ethereum (ETH)</option>
+                            <option value="SOL">Solana (SOL)</option>
+                        </select>
+                    </div>
+                    <div class="chart" id="chart">
+                        <!-- Gráfico será renderizado aqui -->
+                        <canvas id="price-chart" width="600" height="300"></canvas>
+                    </div>
+                </div>
+
+                <!-- Painel de Trading -->
+                <div class="trade-panel">
+                    <h3>💰 Fazer Trade</h3>
+                    
+                    <div id="position-info" class="position-info">
+                        <!-- Info da posição atual -->
+                    </div>
+
+                    <div class="trade-form">
+                        <div class="form-group">
+                            <label>Moeda:</label>
+                            <select id="trade-crypto">
+                                <option value="BTC">Bitcoin (BTC)</option>
+                                <option value="ETH">Ethereum (ETH)</option>
+                                <option value="SOL">Solana (SOL)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Preço Atual:</label>
+                            <input type="text" id="current-price" readonly value="Carregando...">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Quantidade:</label>
+                            <input type="number" id="quantity" step="0.0001" min="0" placeholder="0.001">
+                        </div>
+
+                        <div class="form-group">
+                            <label>Valor Total:</label>
+                            <input type="text" id="total-value" readonly value="R$ 0,00">
+                        </div>
+
+                        <div class="trade-buttons">
+                            <button class="btn-buy" onclick="comprar()" id="btn-comprar">
+                                💚 COMPRAR
+                            </button>
+                            <button class="btn-sell" onclick="vender()" id="btn-vender" disabled>
+                                ❤️ VENDER
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="alertas">
+                        <h4>⚡ Alertas de Estratégia</h4>
+                        <div id="alertas-list">
+                            <!-- Alertas em tempo real -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Histórico de Trades -->
+            <div class="historico">
+                <h3>📋 Histórico de Trades</h3>
+                <table class="trades-table">
+                    <thead>
+                        <tr>
+                            <th>Data/Hora</th>
+                            <th>Moeda</th>
+                            <th>Compra</th>
+                            <th>Venda</th>
+                            <th>Lucro %</th>
+                            <th>Lucro R$</th>
+                        </tr>
+                    </thead>
+                    <tbody id="trades-list">
+                        <tr><td colspan="6">Nenhum trade realizado</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
